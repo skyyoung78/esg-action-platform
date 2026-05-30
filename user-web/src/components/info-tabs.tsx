@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import InfoCompanySearch from "@/components/info-company-search";
 import InfoResourceList from "@/components/info-resource-list";
 import InfoTermDictionary from "@/components/info-term-dictionary";
 import {
@@ -42,9 +43,14 @@ export default function InfoTabs() {
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
           <h2 className="font-semibold text-lg">ESG 기업 공시 및 평가지표</h2>
           <p className="text-sm text-slate-600 mt-1">
-            KRX·KCGS·DART 등 공식 기관에서 제공하는 ESG 등급·공시·보고서 정보입니다.
+            KRX·KCGS·DART 등 공식 기관 자료와 함께, 상장사·공기업·공공기관명을 검색해 ESG 등급·공시 목록을 확인할 수 있습니다.
           </p>
-          <InfoResourceList items={disclosureResources} />
+          <InfoCompanySearch />
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <h3 className="font-semibold">공식 정보 출처</h3>
+            <p className="text-sm text-slate-600 mt-1">아래 기관 사이트에서 원문·통계를 확인할 수 있습니다.</p>
+            <InfoResourceList items={disclosureResources} />
+          </div>
         </section>
       ) : null}
 
@@ -52,7 +58,7 @@ export default function InfoTabs() {
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
           <h2 className="font-semibold text-lg">ESG 용어 사전</h2>
           <p className="text-sm text-slate-600 mt-1">
-            K-ESG·K-택소노미·KRX 등 공식 자료 기준으로 정리한 핵심 용어입니다. 각 항목에서 원문 사이트로 이동할 수 있습니다.
+            한국ESG연구소·KCGS·한국신용평가·금융위원회·KCMI·UNGC 등 공식 자료 기준으로 정리한 핵심 용어입니다. E/S/G 카테고리·출처 필터·자동완성 검색을 지원하며, 출처 태그 클릭 시 해당 기관 사이트로 이동합니다.
           </p>
           <InfoTermDictionary terms={esgTerms} />
           <div className="mt-8 border-t border-slate-100 pt-6">

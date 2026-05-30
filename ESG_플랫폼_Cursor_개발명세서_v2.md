@@ -1,4 +1,4 @@
-# 🌿 ESG 액션 플랫폼 — Cursor AI 개발 명세서 v2.1
+# 🌿 ESG 액션 플랫폼 — Cursor AI 개발 명세서 v2.2
 
 > 대학생 맞춤형 ESG 종합 액션 플랫폼 MVP  
 > **PC 반응형 웹 + 모바일 하단 네비 완전 반응형 구조**
@@ -108,7 +108,9 @@
 | `/` | `app/page.tsx` | 홈 — 뉴스 TOP3, 마감 임박 채용 TOP3, 추천 봉사 배너 |
 | `/news` | `app/news/page.tsx` | ESG 뉴스 — AI 3줄 요약, E/S/G 필터, 키워드 검색 |
 | `/jobs` | `app/jobs/page.tsx` | 채용 공고 — 사람인 RSS, 직무 필터, D-day 마감순 정렬 |
-| `/info` | `app/info/page.tsx` | ESG 정보 — 기업등급 / 직무가이드 / 용어사전 탭 |
+| `/info` | `app/info/page.tsx` | ESG 정보 — 기업 공시·평가 / 용어 사전 / 직무·취업 탭 |
+| `/api/companies/search` | `app/api/companies/search/route.ts` | 기업·공기업·공공기관 자동완성 검색 API |
+| `/api/companies/disclosure` | `app/api/companies/disclosure/route.ts` | ESG 등급·DART 공시 조회 API |
 | `/volunteer` | `app/volunteer/page.tsx` | 봉사 목록 — E/S 탭 필터, 1365 인증 라벨 |
 | `/volunteer/[id]` | `app/volunteer/[id]/page.tsx` | 봉사 상세 — 요강 뷰어 + 하단 고정 신청 버튼 |
 | `/admin` | `app/admin/page.tsx` | 관리자 로그인 — Supabase Auth |
@@ -375,19 +377,54 @@ const items = parsed.rss.channel[0].item;
 
 ### 7-4. ESG 정보 (`/info`)
 
-탭 순서: **기업 ESG 등급 → 직무 가이드 → 용어사전**
+탭 순서: **기업 공시·평가 → 용어 사전 → 직무·취업**
 
 | 탭 | 내용 |
 |------|------|
-| 기업 ESG 등급 | E·S·G 점수 카드 그리드, 대표 사례, 키 이니셔티브 pill (등급 변경사항 발생 시 최신 값으로 수정 반영) |
-| 직무 가이드 | ESG기획·투자·탄소관리·사회공헌 4개 직무, 필요 역량 태그 |
-| 용어사전 | 전체/핵심용어/공시프레임워크/E지표/S지표/G지표 서브탭, 키워드 검색, 펼치기 카드, 용어별 요약 설명 + 상세 학습용 외부 링크 |
+| 기업 공시·평가 | **기업 ESG 공시 검색** (상장사·공기업·공공기관), E/S/G 등급·점수, DART ESG·지속가능·경영공시 목록, 공식 출처 링크 |
+| 용어 사전 | E/S/G 카테고리 탭, 출처 필터, 실시간 자동완성 검색, 클릭 가능한 출처 태그, 가이드라인 원문 자료 |
+| 직무·취업 | 금융위·KCMI·UNGC 등 공식 기관 커리어·정책 자료 링크 |
+
+#### 7-4-1. 기업 ESG 공시 검색 (구현 완료)
+
+**대상 기관 유형**
+
+| 유형 | 배지 | 예시 |
+|------|------|------|
+| 상장사 | 회색 | 삼성전자, SK하이닉스, 현대차 |
+| 공기업 | 파란색 | 한국전력, 한국철도공사, LH, 도로공사 |
+| 공공기관 | 청록색 | 국민건강보험공단, 국민연금공단, 근로복지공단 |
+
+**데이터 소스**
+
+| 소스 | 역할 |
+|------|------|
+| Open DART API (`OPENDART_API_KEY`) | 지속가능경영·ESG·지배구조·경영공시 목록 (최근 3년) |
+| Supabase `esg_company_grades` | 관리자 등록 ESG 등급·E/S/G 점수 |
+| `listed-companies.ts` | 자동완성 (~90개 기관, 별칭 검색 지원) |
+| 샘플 데이터 | API 키 미설정 시 데모 등급·DART 검색 링크 |
+
+**API**
+
+```
+GET /api/companies/search?q={검색어}
+GET /api/companies/disclosure?name={기관명}&stockCode={선택}
+```
+
+**주요 파일:** `listed-companies.ts`, `company-disclosure.ts`, `info-company-search.tsx`
+
+#### 7-4-2. ESG 용어 사전 (구현 완료)
+
+**공식 출처:** KRESG, KCGS, KIS, 금융위, KCMI, UNGC, K-ESG(`k-esg.org`), KRX, DART, K-택소노미
+
+**UI:** E/S/G 탭 · 출처 필터 · 자동완성 · 출처 태그 클릭 → 공식 사이트 · 용어 70개+
+
+**주요 파일:** `info-content.ts`, `info-term-dictionary.tsx`, `info-tabs.tsx`
 
 **운영 규칙 (ESG 정보)**
-- 기업 ESG 등급은 고정 데이터가 아니며, 공시/평가 변경 시 관리자 업데이트로 최신화한다.
-- 용어사전 카드는 `용어명 + 짧은 요약 설명`을 기본 노출한다.
-- 사용자가 더 자세히 보길 원할 때를 위해, 각 용어에 `참고 웹사이트 링크(source_url)`를 제공한다.
-- 외부 링크는 새 탭으로 연다 (`target="_blank"`, `rel="noopener noreferrer"`).
+- 기업 ESG 등급은 Supabase `esg_company_grades` 또는 DART·KRX 공시로 최신화한다.
+- K-ESG URL: `k-esg.org` (구 `esg.go.kr` 폐쇄). UNGC URL: `unglobalcompact.kr`.
+- 용어 카드: `용어명 + 요약 + 출처 태그`. 외부 링크는 새 탭 (`target="_blank"`, `rel="noopener noreferrer"`).
 
 ### 7-5. 봉사활동 (`/volunteer`)
 
@@ -440,9 +477,10 @@ components/
 │   ├── VolunteerCard.tsx
 │   └── VolunteerDetail.tsx
 └── info/
-    ├── GradeCard.tsx
-    ├── JobGuideCard.tsx
-    └── DictCard.tsx        # 펼치기/접기 용어 카드
+    ├── InfoTabs.tsx              # 3탭 (공시·평가 / 용어 / 직무)
+    ├── InfoCompanySearch.tsx     # 기업·공기업·공공기관 ESG 공시 검색
+    ├── InfoTermDictionary.tsx    # 용어 사전 (E/S/G·출처·자동완성)
+    └── InfoResourceList.tsx      # 공식 출처 카드 목록
 ```
 
 ---
@@ -468,6 +506,7 @@ components/
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...        # Edge Function 전용
+OPENDART_API_KEY=xxxxxxxx               # Open DART API (기업 공시 검색)
 NAVER_CLIENT_ID=xxxxxxxx
 NAVER_CLIENT_SECRET=xxxxxxxx
 OPENAI_API_KEY=sk-...
@@ -608,4 +647,39 @@ body {
 
 ---
 
-*🌿 ESG 액션 플랫폼 개발 명세서 v2.1 · Cursor 구현 실행용 포함*
+## 14. 구현 현황 및 변경 이력 (2026-05)
+
+> GitHub: https://github.com/skyyoung78/esg-action-platform
+
+### 14-1. user-web 구현 완료 항목
+
+| 영역 | 상태 | 비고 |
+|------|------|------|
+| Next.js App Router + Tailwind | ✅ | `user-web/` |
+| 홈 / 뉴스 / 채용 / 봉사 / 관리자 데모 | ✅ | mock + Supabase 연동 준비 |
+| ESG 정보 3탭 UI | ✅ | 공시·평가 / 용어 / 직무 |
+| 용어 사전 70개+ | ✅ | 10개 공식 출처, E/S/G·필터·자동완성 |
+| 기업 ESG 공시 검색 | ✅ | 상장사·공기업·공공기관, DART API |
+| Supabase 마이그레이션 | ✅ | `esg_company_grades`, `esg_terms` 등 |
+| Edge Functions (뉴스·채용) | ✅ | `supabase/functions/` |
+| GitHub 업로드 | ✅ | `main` 브랜치 |
+
+### 14-2. 주요 변경 사항 (v2.1 → v2.2)
+
+1. **ESG 정보 탭 재구성:** 기업등급 → **기업 공시·평가** (검색 중심), 용어사전 UI 고도화
+2. **용어 출처 확장:** KRESG, KCGS, KIS, 금융위, KCMI, UNGC 추가; K-ESG URL `k-esg.org`로 수정
+3. **기업 검색 API:** `/api/companies/search`, `/api/companies/disclosure` + `OPENDART_API_KEY`
+4. **공기업·공공기관:** ~45개 비상장 기관 자동완성, DART 법인명 다중 조회
+5. **뉴스 페이지:** 제목+원문 링크 중심 (AI 요약은 API 키 설정 후 재활성화 가능)
+
+### 14-3. 미완료 / 다음 단계
+
+- [ ] Supabase 프로덕션 배포 및 Edge Function cron 활성화
+- [ ] Vercel `user-web` 배포 및 환경변수 등록
+- [ ] 관리자 웹 별도 프로젝트 스캐폴딩
+- [ ] `esg_company_grades` 관리자 CRUD 연동
+- [ ] 뉴스 AI 3줄 요약 재활성화 (OPENAI_API_KEY 설정 시)
+
+---
+
+*🌿 ESG 액션 플랫폼 개발 명세서 v2.2 · Cursor 구현 실행용 포함 · 2026-05-28*
