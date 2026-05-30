@@ -1,0 +1,31 @@
+# Dependencies
+**/node_modules/
+
+# Next.js
+**/.next/
+**/out/
+**/build/
+
+# Environment (secrets)
+.env
+.env.local
+.env.*.local
+**/.env.local
+
+# Supabase local
+.supabase/
+
+# Logs & debug
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,23 @@
+project_id = "esg-action-platform"
+
+[functions.news-collector]
+verify_jwt = false
+
+[functions.jobs-collector]
+verify_jwt = false
+
+[cron.news_collector_midnight]
+schedule = "0 15 * * *"
+function = "news-collector"
+
+[cron.news_collector_noon]
+schedule = "0 3 * * *"
+function = "news-collector"
+
+[cron.jobs_collector_midnight]
+schedule = "10 15 * * *"
+function = "jobs-collector"
+
+[cron.jobs_collector_noon]
+schedule = "10 3 * * *"
+function = "jobs-collector"
