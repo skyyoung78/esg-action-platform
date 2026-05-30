@@ -1,3 +1,9 @@
+import {
+  buildGoogleRssOrQueries,
+  ESG_NEWS_SEARCH_KEYWORDS,
+  isEsgRelatedNews,
+} from "@/lib/esg-news-filter";
+
 type LiveNewsItem = {
   title: string;
   originalUrl: string;
@@ -58,12 +64,26 @@ function cleanCdata(input: string): string {
     .trim();
 }
 
+function pushIfRelevant(
+  gathered: LiveNewsItem[],
+  seen: Set<string>,
+  item: LiveNewsItem,
+  limit: number,
+): boolean {
+  if (!isEsgRelatedNews(item.title, item.snippet)) return false;
+  if (seen.has(item.originalUrl)) return false;
+
+  seen.add(item.originalUrl);
+  gathered.push(item);
+  return gathered.length >= limit;
+}
+
 async function fetchGoogleRssNews(limit: number): Promise<LiveNewsItem[]> {
-  const queries = ["ESG", "탄소중립", "지속가능경영"];
   const gathered: LiveNewsItem[] = [];
   const seen = new Set<string>();
+  const orQueries = buildGoogleRssOrQueries(8);
 
-  for (const query of queries) {
+  for (const query of orQueries) {
     const rssUrl = new URL("https://news.google.com/rss/search");
     rssUrl.searchParams.set("q", query);
     rssUrl.searchParams.set("hl", "ko");
@@ -82,16 +102,19 @@ async function fetchGoogleRssNews(limit: number): Promise<LiveNewsItem[]> {
       const rawDescription = cleanCdata(extractTag(block, "description"));
       const title = decodeHtml(rawTitle.replace(/\s*-\s*Google 뉴스$/i, "").trim());
       const originalUrl = normalizeUrl(rawLink);
-      if (!title || !originalUrl || seen.has(originalUrl)) continue;
+      const snippet = decodeHtml(rawDescription);
+      if (!title || !originalUrl) continue;
 
-      seen.add(originalUrl);
-      gathered.push({
-        title,
-        originalUrl,
-        source: hostnameOf(originalUrl),
-        snippet: decodeHtml(rawDescription),
-      });
-      if (gathered.length >= limit) return gathered;
+      if (
+        pushIfRelevant(
+          gathered,
+          seen,
+          { title, originalUrl, source: hostnameOf(originalUrl), snippet },
+          limit,
+        )
+      ) {
+        return gathered;
+      }
     }
   }
 
@@ -105,14 +128,13 @@ export async function fetchLiveNews(limit = 12): Promise<LiveNewsItem[]> {
     return fetchGoogleRssNews(limit);
   }
 
-  const keywords = ["ESG", "탄소중립", "지속가능경영"];
   const gathered: LiveNewsItem[] = [];
   const seen = new Set<string>();
 
-  for (const keyword of keywords) {
+  for (const keyword of ESG_NEWS_SEARCH_KEYWORDS) {
     const url = new URL("https://openapi.naver.com/v1/search/news.json");
     url.searchParams.set("query", keyword);
-    url.searchParams.set("display", "10");
+    url.searchParams.set("display", "20");
     url.searchParams.set("sort", "date");
 
     const response = await fetch(url.toString(), {
@@ -129,19 +151,22 @@ export async function fetchLiveNews(limit = 12): Promise<LiveNewsItem[]> {
 
     for (const item of items) {
       const title = decodeHtml(String(item.title ?? ""));
+      const snippet = decodeHtml(String(item.description ?? ""));
       const originalUrl = normalizeUrl(item.originallink) ?? normalizeUrl(item.link);
-      if (!title || !originalUrl || seen.has(originalUrl)) continue;
-      seen.add(originalUrl);
-      gathered.push({
-        title,
-        originalUrl,
-        source: hostnameOf(originalUrl),
-        snippet: decodeHtml(String(item.description ?? "")),
-      });
-      if (gathered.length >= limit) return gathered;
+      if (!title || !originalUrl) continue;
+
+      if (
+        pushIfRelevant(
+          gathered,
+          seen,
+          { title, originalUrl, source: hostnameOf(originalUrl), snippet },
+          limit,
+        )
+      ) {
+        return gathered;
+      }
     }
   }
 
   return gathered.length > 0 ? gathered : fetchGoogleRssNews(limit);
 }
-

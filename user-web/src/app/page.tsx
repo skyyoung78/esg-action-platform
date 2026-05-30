@@ -3,10 +3,13 @@ import AppShell from "@/components/app-shell";
 import { jobs, newsItems, volunteers } from "@/lib/mock-data";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizeExternalUrl } from "@/lib/url";
+import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
 import { fetchLiveNews } from "@/lib/live-news";
 
 export default async function Home() {
-  const liveTopNews = await fetchLiveNews(3);
+  const liveTopNews = (await fetchLiveNews(6)).filter((item) =>
+    isEsgRelatedNews(item.title, item.snippet),
+  ).slice(0, 3);
   const supabase = createSupabaseServerClient();
   let homeNews =
     liveTopNews.length > 0
@@ -14,7 +17,7 @@ export default async function Home() {
           id: item.originalUrl,
           title: item.title,
           summary: ["", "", ""] as [string, string, string],
-          category: "E" as const,
+          category: classifyEsgCategory(item.title, item.snippet),
           source: item.source,
           originalUrl: item.originalUrl,
         }))
@@ -39,7 +42,16 @@ export default async function Home() {
     ]);
 
     if (liveTopNews.length === 0 && newsRes.data && newsRes.data.length > 0) {
-      homeNews = newsRes.data.map((row) => ({
+      homeNews = newsRes.data
+        .filter((row) => {
+          const title = String(row.title ?? "");
+          const summaryText = Array.isArray(row.summary)
+            ? row.summary.join(" ")
+            : String(row.summary ?? "");
+          return isEsgRelatedNews(title, summaryText);
+        })
+        .slice(0, 3)
+        .map((row) => ({
         id: String(row.id),
         title: String(row.title),
         summary: ["", "", ""] as [string, string, string],

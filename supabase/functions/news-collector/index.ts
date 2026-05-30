@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  classifyEsgCategory,
+  ESG_NEWS_SEARCH_KEYWORDS,
+  isEsgRelatedNews,
+} from "../_shared/esg-news-filter.ts";
 
 type ESGCategory = "E" | "S" | "G";
 
@@ -14,7 +19,7 @@ type NewsItem = {
 
 const NAVER_ENDPOINT = "https://openapi.naver.com/v1/search/news.json";
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-const NEWS_KEYWORDS = ["ESG", "탄소중립", "지속가능경영", "ESG공시", "사회공헌"];
+const NEWS_KEYWORDS = ESG_NEWS_SEARCH_KEYWORDS;
 
 function decodeHtmlEntities(input: string): string {
   const entities: Record<string, string> = {
@@ -165,7 +170,7 @@ async function fetchNewsByKeyword(params: {
 }): Promise<Array<Record<string, unknown>>> {
   const url = new URL(NAVER_ENDPOINT);
   url.searchParams.set("query", params.keyword);
-  url.searchParams.set("display", "10");
+  url.searchParams.set("display", "20");
   url.searchParams.set("sort", "date");
 
   const response = await fetch(url.toString(), {
@@ -210,7 +215,10 @@ Deno.serve(async () => {
 
   const collectedAt = new Date().toISOString();
   const allRows: NewsItem[] = [];
+  const seenUrls = new Set<string>();
   let skippedByAi = 0;
+  let skippedByFilter = 0;
+  let skippedByDuplicate = 0;
 
   for (const keyword of NEWS_KEYWORDS) {
     const items = await fetchNewsByKeyword({
@@ -236,6 +244,19 @@ Deno.serve(async () => {
         continue;
       }
 
+      if (!isEsgRelatedNews(title, description)) {
+        skippedByFilter += 1;
+        continue;
+      }
+
+      if (seenUrls.has(originalUrl)) {
+        skippedByDuplicate += 1;
+        continue;
+      }
+      seenUrls.add(originalUrl);
+
+      const keywordCategory = classifyEsgCategory(title, description);
+
       const summaryResult = await getSummaryAndCategory({
         openAiApiKey,
         title,
@@ -253,7 +274,7 @@ Deno.serve(async () => {
         original_url: originalUrl,
         published_at: publishedAt,
         summary: summaryResult.summary,
-        esg_category: summaryResult.category,
+        esg_category: keywordCategory ?? summaryResult.category,
         collected_at: collectedAt,
       });
     }
@@ -265,6 +286,8 @@ Deno.serve(async () => {
         ok: true,
         inserted: 0,
         skippedByAi,
+        skippedByFilter,
+        skippedByDuplicate,
         message: "No rows to insert",
       }),
       {
@@ -284,6 +307,8 @@ Deno.serve(async () => {
         ok: false,
         inserted: 0,
         skippedByAi,
+        skippedByFilter,
+        skippedByDuplicate,
         error: error.message,
       }),
       {
