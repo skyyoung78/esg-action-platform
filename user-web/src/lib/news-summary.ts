@@ -1,3 +1,5 @@
+import { stripHtmlToText } from "@/lib/text-sanitize";
+
 export type NewsSummaryTriple = [string, string, string];
 
 function shortText(input: string, max = 120): string {
@@ -41,8 +43,8 @@ function splitSentences(text: string): string[] {
 }
 
 export function buildTemplateSummary(title: string, snippet: string): NewsSummaryTriple {
-  const cleanTitle = shortText(extractCoreTitle(title), 110);
-  const cleanSnippet = shortText(snippet, 220);
+  const cleanTitle = shortText(stripHtmlToText(extractCoreTitle(title)), 110);
+  const cleanSnippet = shortText(stripHtmlToText(snippet), 220);
   const hasUsefulSnippet = Boolean(cleanSnippet) && !isSimilarText(cleanTitle, cleanSnippet);
   const snippetSentences = hasUsefulSnippet ? splitSentences(cleanSnippet) : [];
 
@@ -65,6 +67,25 @@ export function buildTemplateSummary(title: string, snippet: string): NewsSummar
         : "ESG 이슈 흐름을 파악하고 취업·과제 사례 분석에 참고할 수 있습니다.";
 
   return [what, whyHow, insight];
+}
+
+/** OpenAI 없이 원문 기반 대학생 ESG 트렌드 요약 생성 */
+export function buildStudentTrendSummary(title: string, body: string): string {
+  const summary = buildTemplateSummary(title, body);
+  const categoryHint = /탄소|기후|환경|에너지|재생/.test(`${title} ${body}`)
+    ? "환경(E) 분야"
+    : /사회|복지|노동|공헌|csr|일자리|상생/.test(`${title} ${body}`)
+      ? "사회(S) 분야"
+      : /지배|공시|거버넌스|투명|이사회/.test(`${title} ${body}`)
+        ? "지배구조(G) 분야"
+        : "ESG 전반";
+
+  return [
+    summary[0],
+    `${categoryHint} 최신 이슈로, 대학생이 ESG 트렌드를 파악하는 데 도움이 됩니다.`,
+    summary[2],
+    "관련 키워드를 과제·리포트·면접 준비에 연결해 보면 실무 감각을 키울 수 있습니다.",
+  ].join(" ");
 }
 
 export function buildSummaryPrompt(title: string, description: string): string {

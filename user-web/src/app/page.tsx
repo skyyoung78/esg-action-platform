@@ -1,37 +1,30 @@
 import Link from "next/link";
 import AppShell from "@/components/app-shell";
 import { jobs, newsItems, volunteers } from "@/lib/mock-data";
+import { loadRecentNewsPeriod } from "@/lib/recent-news";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizeExternalUrl } from "@/lib/url";
-import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
-import { fetchLiveNews } from "@/lib/live-news";
 
 export default async function Home() {
-  const liveTopNews = (await fetchLiveNews(6)).filter((item) =>
-    isEsgRelatedNews(item.title, item.snippet),
-  ).slice(0, 3);
-  const supabase = createSupabaseServerClient();
+  const recentPeriod = await loadRecentNewsPeriod();
   let homeNews =
-    liveTopNews.length > 0
-      ? liveTopNews.map((item) => ({
-          id: item.originalUrl,
+    recentPeriod.items.length > 0
+      ? recentPeriod.items.slice(0, 3).map((item) => ({
+          id: item.id,
           title: item.title,
-          summary: ["", "", ""] as [string, string, string],
-          category: classifyEsgCategory(item.title, item.snippet),
-          source: item.source,
           originalUrl: item.originalUrl,
         }))
-      : newsItems.slice(0, 3);
+      : newsItems.slice(0, 3).map((item) => ({
+          id: item.id,
+          title: item.title,
+          originalUrl: item.originalUrl,
+        }));
   let homeJobs = jobs.slice(0, 3);
   let homeVolunteers = volunteers;
 
+  const supabase = createSupabaseServerClient();
   if (supabase) {
-    const [newsRes, jobsRes, volunteerRes] = await Promise.all([
-      supabase
-        .from("news")
-        .select("id,title,summary,esg_category,source,original_url,published_at")
-        .order("published_at", { ascending: false })
-        .limit(3),
+    const [jobsRes, volunteerRes] = await Promise.all([
       supabase
         .from("jobs")
         .select("id,title,company,job_type,deadline,apply_url,created_at")
@@ -40,26 +33,6 @@ export default async function Home() {
         .limit(3),
       supabase.from("volunteers").select("*").is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
     ]);
-
-    if (liveTopNews.length === 0 && newsRes.data && newsRes.data.length > 0) {
-      homeNews = newsRes.data
-        .filter((row) => {
-          const title = String(row.title ?? "");
-          const summaryText = Array.isArray(row.summary)
-            ? row.summary.join(" ")
-            : String(row.summary ?? "");
-          return isEsgRelatedNews(title, summaryText);
-        })
-        .slice(0, 3)
-        .map((row) => ({
-        id: String(row.id),
-        title: String(row.title),
-        summary: ["", "", ""] as [string, string, string],
-        category: String(row.esg_category) as "E" | "S" | "G",
-        source: String(row.source ?? ""),
-        originalUrl: String(row.original_url),
-      }));
-    }
 
     if (jobsRes.data && jobsRes.data.length > 0) {
       homeJobs = jobsRes.data.map((row) => {
@@ -111,20 +84,31 @@ export default async function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <article className="bg-white rounded-xl p-4 shadow-sm">
-          <h3 className="font-semibold mb-3">뉴스 TOP3</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">최근 7일 뉴스 TOP3</h3>
+            <Link href="/news" className="text-xs text-[#085041] hover:underline">
+              전체 뉴스 보기
+            </Link>
+          </div>
           <ul className="space-y-2 text-sm">
             {homeNews.map((item) => (
-              <li key={item.id}>
-                {(() => {
-                  const articleUrl = normalizeExternalUrl(item.originalUrl);
-                  return articleUrl ? (
-                    <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {item.title}
-                    </a>
-                  ) : (
-                    <span className="text-slate-500">{item.title} (원문 링크 확인 중)</span>
-                  );
-                })()}
+              <li key={item.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <Link
+                  href={`/news/${encodeURIComponent(item.id)}`}
+                  className="hover:text-[#085041] hover:underline"
+                >
+                  {item.title}
+                </Link>
+                {normalizeExternalUrl(item.originalUrl) ? (
+                  <a
+                    href={normalizeExternalUrl(item.originalUrl)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-slate-400 hover:text-[#085041] hover:underline shrink-0"
+                  >
+                    원문 ↗
+                  </a>
+                ) : null}
               </li>
             ))}
           </ul>

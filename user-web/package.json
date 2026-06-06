@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "news:backfill": "npx tsx scripts/backfill-news-local.ts",
+    "news:backfill:supabase": "npx tsx scripts/backfill-news.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

@@ -5,6 +5,8 @@ export type NewsItem = {
   category: "E" | "S" | "G";
   source: string;
   originalUrl: string;
+  originalBody?: string;
+  studentTrendSummary?: string;
   isFallback?: boolean;
 };
 
@@ -38,8 +40,12 @@ export const newsItems: NewsItem[] = [
       "대학생 대상 ESG 직무 채용 수요도 함께 증가할 전망이다.",
     ],
     category: "E",
-    source: "fallback",
-    originalUrl: "",
+    source: "데모",
+    originalUrl: "https://www.korea.kr/news/policyNewsView.do?newsId=148882345",
+    originalBody:
+      "국내 주요 기업들이 탄소중립 달성을 위해 재생에너지 전환과 에너지 효율 개선에 대한 투자를 확대하고 있다. 정부의 2050 탄소중립 로드맵에 맞춰 온실가스 감축 목표를 상향 조정하는 기업이 늘고 있으며, RE100 가입 기업 수도 꾸준히 증가하는 추세다.",
+    studentTrendSummary:
+      "탄소중립은 환경경영(E) 분야의 핵심 키워드로, 대학생이 ESG 직무를 준비할 때 반드시 이해해야 할 트렌드입니다. 재생에너지·에너지 효율 관련 기업 공시와 채용 공고가 늘고 있어, 환경공학·경영·정책학 등 다양한 전공 학생이 관련 인턴·신입 포지션을 탐색할 수 있습니다.",
     isFallback: true,
   },
   {
@@ -51,8 +57,12 @@ export const newsItems: NewsItem[] = [
       "사회적 가치 측정 체계를 도입하는 기업 사례가 늘고 있다.",
     ],
     category: "S",
-    source: "fallback",
-    originalUrl: "",
+    source: "데모",
+    originalUrl: "https://www.korea.kr/news/policyNewsView.do?newsId=148881234",
+    originalBody:
+      "기업들의 사회공헌 예산이 청년 교육·취업 지원 분야로 재편되고 있다. 지역 대학과 연계한 장학 및 멘토링 프로그램이 확대되며, 사회적 가치 측정 체계를 도입하는 기업 사례도 증가하고 있다.",
+    studentTrendSummary:
+      "사회공헌(S) 영역은 대학생에게 직접적인 참여 기회와 연결됩니다. 기업의 청년 지원 프로그램, 멘토링, 장학 정책을 파악하면 CSR·사회적가치 관련 과제와 취업 준비에 실질적인 사례를 활용할 수 있습니다.",
     isFallback: true,
   },
   {
@@ -64,8 +74,12 @@ export const newsItems: NewsItem[] = [
       "투자기관은 공시 신뢰도를 중점 평가 지표로 활용하는 분위기다.",
     ],
     category: "G",
-    source: "fallback",
-    originalUrl: "",
+    source: "데모",
+    originalUrl: "https://www.korea.kr/news/policyNewsView.do?newsId=148880123",
+    originalBody:
+      "ESG 공시 의무화 일정에 맞춰 기업들이 지배구조 점검을 강화하고 있다. 이사회 독립성 확보와 내부통제 프로세스 개선이 주요 과제로 제시되며, 투자기관은 공시 신뢰도를 핵심 평가 지표로 활용하고 있다.",
+    studentTrendSummary:
+      "지배구조(G)와 ESG 공시는 금융·경영·법학 전공 학생에게 중요한 취업 트렌드입니다. 공시 자료 분석, 내부통제, 컴플라이언스 관련 직무 수요가 늘고 있어, DART·KRX 공시를 직접 읽어보는 습관이 경쟁력이 됩니다.",
     isFallback: true,
   },
 ];

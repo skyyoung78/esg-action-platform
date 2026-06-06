@@ -9,10 +9,15 @@ create table if not exists public.news (
   original_url text not null unique,
   published_at timestamptz not null,
   collected_at timestamptz not null,
+  week_start date,
+  original_snippet text,
+  original_body text,
+  student_trend_summary text,
   created_at timestamptz default now()
 );
 
 create index if not exists idx_news_published_at on public.news (published_at desc);
+create index if not exists idx_news_week_start on public.news (week_start desc, published_at desc);
 create index if not exists idx_news_esg_category on public.news (esg_category);
 
 alter table public.news enable row level security;

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import type { NewsItemView } from "@/components/news-list";
 import InfoCompanySearch from "@/components/info-company-search";
+import InfoEsgOverview from "@/components/info-esg-overview";
 import InfoResourceList from "@/components/info-resource-list";
 import InfoTermDictionary from "@/components/info-term-dictionary";
 import {
@@ -12,6 +14,7 @@ import {
 } from "@/lib/info-content";
 
 const tabs = [
+  { id: "overview", label: "ESG 종합" },
   { id: "disclosure", label: "기업 공시·평가" },
   { id: "dictionary", label: "용어 사전" },
   { id: "career", label: "직무·취업" },
@@ -19,8 +22,8 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
-export default function InfoTabs() {
-  const [activeTab, setActiveTab] = useState<TabId>("disclosure");
+export default function InfoTabs({ featuredArticles }: { featuredArticles: NewsItemView[] }) {
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   return (
     <div>
@@ -38,6 +41,18 @@ export default function InfoTabs() {
           </button>
         ))}
       </div>
+
+      {activeTab === "overview" ? (
+        <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
+          <h2 className="font-semibold text-lg">ESG 종합 · 주요 기사</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            최근 7일 ESG 뉴스를 원문 → 핵심 요약 → 대학생 맞춤 트렌드 요약 순서로 제공합니다.
+          </p>
+          <div className="mt-5">
+            <InfoEsgOverview articles={featuredArticles} />
+          </div>
+        </section>
+      ) : null}
 
       {activeTab === "disclosure" ? (
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">

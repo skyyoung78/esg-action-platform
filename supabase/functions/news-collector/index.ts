@@ -1,9 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchArticleBody, truncateArticleBody } from "../_shared/article-fetcher.ts";
 import {
   classifyEsgCategory,
   ESG_NEWS_SEARCH_KEYWORDS,
   isEsgRelatedNews,
 } from "../_shared/esg-news-filter.ts";
+import { getOldestRetainedWeekStart, getWeekStartKey } from "../_shared/news-week.ts";
+
+const COLLECT_ROLLING_DAYS = 7;
+
+function isWithinRollingDays(pubDate: string, days = COLLECT_ROLLING_DAYS): boolean {
+  const published = new Date(pubDate);
+  if (Number.isNaN(published.getTime())) return false;
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  return published >= cutoff;
+}
 
 type ESGCategory = "E" | "S" | "G";
 
@@ -12,9 +23,13 @@ type NewsItem = {
   source: string;
   original_url: string;
   published_at: string;
+  original_body: string;
   summary: [string, string, string];
+  student_trend_summary: string;
   esg_category: ESGCategory;
   collected_at: string;
+  week_start: string;
+  original_snippet: string;
 };
 
 const NAVER_ENDPOINT = "https://openapi.naver.com/v1/search/news.json";
@@ -88,32 +103,41 @@ function validateSummaryTriple(summary: unknown): [string, string, string] | nul
   return normalized;
 }
 
-async function getSummaryAndCategory(params: {
+async function getArticleSummaries(params: {
   openAiApiKey: string;
   title: string;
-  description: string;
-}): Promise<{ summary: [string, string, string]; category: ESGCategory } | null> {
+  originalBody: string;
+}): Promise<{
+  summary: [string, string, string];
+  studentTrendSummary: string;
+  category: ESGCategory;
+} | null> {
+  const bodyForAi = truncateArticleBody(params.originalBody, 12_000);
+
   const systemPrompt =
     "너는 ESG 뉴스를 대학생에게 쉽게 설명하는 편집자다. 반드시 한국어로 답한다. 원문에 없는 정보는 절대 추가하지 않는다.";
+
   const userPrompt = [
-    "아래 뉴스 정보를 바탕으로 3줄 요약과 ESG 카테고리를 반환하라.",
+    "아래 기사 원문을 2단계로 처리하라.",
     "",
-    "summary 3줄 작성 기준(내용 구조만 참고, 라벨/템플릿 문구는 출력하지 말 것):",
-    "1줄: 핵심 팩트 및 기업/기관의 액션",
-    "2줄: 원인, 정량 수치, 구체적 방법(없으면 '원문에 해당 정보가 명시되지 않았습니다.')",
-    "3줄: 대학생 관점(취업준비, 과제, 상식, 트렌드) 의미",
+    "1단계 summary: 기사 원문을 바탕으로 핵심 3줄 요약",
+    "- 1줄: 핵심 팩트 및 기업/기관의 액션",
+    "- 2줄: 원인, 정량 수치, 구체적 방법(없으면 '원문에 해당 정보가 명시되지 않았습니다.')",
+    "- 3줄: 사건의 배경·맥락",
     "",
-    "규칙:",
-    "- (WHAT-핵심사건), (WHY/HOW), (INSIGHT-대학생관점) 같은 템플릿 라벨을 summary에 쓰지 말 것",
-    "- URL, 출처명, '기사에 제시된' 같은 메타 문구를 summary에 쓰지 말 것",
-    "- 원문(제목+본문 요약)에 없는 수치, 인용, 사실, 추측을 절대 추가하지 말 것",
-    "- summary는 자연스러운 한국어 문장 3개",
+    "2단계 student_trend_summary: 같은 원문을 바탕으로 대학생 맞춤 ESG 트렌드 요약",
+    "- 4~6문장, 자연스러운 한국어",
+    "- 취업준비, 과제·리포트, ESG 상식, 최신 트렌드 관점에서 왜 중요한지 설명",
+    "- 원문에 없는 수치·사실·추측 금지",
+    "",
+    "공통 규칙:",
+    "- 템플릿 라벨, URL, 메타 문구 금지",
     "- category는 E/S/G 중 하나",
     "",
     `제목: ${params.title}`,
-    `본문 요약: ${params.description}`,
+    `기사 원문:\n${bodyForAi}`,
     "",
-    'JSON만 반환: {"summary":["핵심 사건 문장","원인/방법 문장","대학생 관점 문장"],"category":"E"}',
+    'JSON만 반환: {"summary":["핵심 사건","원인/방법","배경/맥락"],"student_trend_summary":"대학생 맞춤 트렌드 요약 문단","category":"E"}',
   ].join("\n");
 
   const response = await fetch(OPENAI_ENDPOINT, {
@@ -149,13 +173,15 @@ async function getSummaryAndCategory(params: {
     const category = parsed?.category;
     const isValidCategory = category === "E" || category === "S" || category === "G";
     const normalizedSummary = validateSummaryTriple(parsed?.summary);
+    const studentTrendSummary = sanitizeSummaryLine(String(parsed?.student_trend_summary ?? ""));
 
-    if (!normalizedSummary || !isValidCategory) {
+    if (!normalizedSummary || !isValidCategory || studentTrendSummary.length < 40) {
       return null;
     }
 
     return {
       summary: normalizedSummary,
+      studentTrendSummary,
       category,
     };
   } catch (_error) {
@@ -170,7 +196,7 @@ async function fetchNewsByKeyword(params: {
 }): Promise<Array<Record<string, unknown>>> {
   const url = new URL(NAVER_ENDPOINT);
   url.searchParams.set("query", params.keyword);
-  url.searchParams.set("display", "20");
+  url.searchParams.set("display", "100");
   url.searchParams.set("sort", "date");
 
   const response = await fetch(url.toString(), {
@@ -189,7 +215,89 @@ async function fetchNewsByKeyword(params: {
   return Array.isArray(payload?.items) ? payload.items : [];
 }
 
-Deno.serve(async () => {
+async function backfillExistingArticles(params: {
+  supabase: ReturnType<typeof createClient>;
+  openAiApiKey: string;
+}): Promise<{
+  updated: number;
+  skippedByAi: number;
+  skippedByBody: number;
+  failed: number;
+}> {
+  const { data, error } = await params.supabase
+    .from("news")
+    .select("id,title,original_url,source,published_at,original_snippet,original_body,student_trend_summary")
+    .order("published_at", { ascending: false })
+    .limit(500);
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to load existing news rows");
+  }
+
+  let updated = 0;
+  let skippedByAi = 0;
+  let skippedByBody = 0;
+  let failed = 0;
+  const collectedAt = new Date().toISOString();
+
+  for (const row of data) {
+    const title = stripHtml(String(row.title ?? ""));
+    const originalUrl = String(row.original_url ?? "").trim();
+    const publishedAt = toIsoDate(String(row.published_at ?? ""));
+    const snippet = stripHtml(String(row.original_snippet ?? ""));
+
+    if (!title || !originalUrl) {
+      failed += 1;
+      continue;
+    }
+
+    const fetched = await fetchArticleBody(originalUrl);
+    const originalBody = fetched.body.trim() || snippet || String(row.original_body ?? "");
+    if (originalBody.length < 40) {
+      skippedByBody += 1;
+      continue;
+    }
+
+    const summaryResult = await getArticleSummaries({
+      openAiApiKey: params.openAiApiKey,
+      title,
+      originalBody,
+    });
+
+    if (!summaryResult) {
+      skippedByAi += 1;
+      continue;
+    }
+
+    const keywordCategory = classifyEsgCategory(title, originalBody);
+    const { error: updateError } = await params.supabase
+      .from("news")
+      .update({
+        original_body: originalBody,
+        summary: summaryResult.summary,
+        student_trend_summary: summaryResult.studentTrendSummary,
+        esg_category: keywordCategory ?? summaryResult.category,
+        collected_at: collectedAt,
+        week_start: getWeekStartKey(publishedAt),
+        original_snippet: snippet || originalBody.slice(0, 500),
+      })
+      .eq("id", row.id);
+
+    if (updateError) {
+      failed += 1;
+      continue;
+    }
+
+    updated += 1;
+  }
+
+  return { updated, skippedByAi, skippedByBody, failed };
+}
+
+Deno.serve(async (req) => {
+  const requestUrl = new URL(req.url);
+  const mode = requestUrl.searchParams.get("mode") ?? "collect";
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const naverClientId = Deno.env.get("NAVER_CLIENT_ID");
@@ -213,12 +321,31 @@ Deno.serve(async () => {
     auth: { persistSession: false },
   });
 
+  if (mode === "backfill") {
+    try {
+      const result = await backfillExistingArticles({ supabase, openAiApiKey });
+      return new Response(JSON.stringify({ ok: true, mode: "backfill", ...result }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          mode: "backfill",
+          error: error instanceof Error ? error.message : "backfill failed",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
   const collectedAt = new Date().toISOString();
   const allRows: NewsItem[] = [];
   const seenUrls = new Set<string>();
   let skippedByAi = 0;
   let skippedByFilter = 0;
   let skippedByDuplicate = 0;
+  let skippedByBody = 0;
 
   for (const keyword of NEWS_KEYWORDS) {
     const items = await fetchNewsByKeyword({
@@ -244,6 +371,10 @@ Deno.serve(async () => {
         continue;
       }
 
+      if (!isWithinRollingDays(publishedAt)) {
+        continue;
+      }
+
       if (!isEsgRelatedNews(title, description)) {
         skippedByFilter += 1;
         continue;
@@ -255,12 +386,19 @@ Deno.serve(async () => {
       }
       seenUrls.add(originalUrl);
 
-      const keywordCategory = classifyEsgCategory(title, description);
+      const fetched = await fetchArticleBody(originalUrl);
+      const originalBody = fetched.body.trim() || description;
+      if (originalBody.length < 40) {
+        skippedByBody += 1;
+        continue;
+      }
 
-      const summaryResult = await getSummaryAndCategory({
+      const keywordCategory = classifyEsgCategory(title, originalBody);
+
+      const summaryResult = await getArticleSummaries({
         openAiApiKey,
         title,
-        description,
+        originalBody,
       });
 
       if (!summaryResult) {
@@ -273,9 +411,13 @@ Deno.serve(async () => {
         source: stripHtml(source),
         original_url: originalUrl,
         published_at: publishedAt,
+        original_body: originalBody,
         summary: summaryResult.summary,
+        student_trend_summary: summaryResult.studentTrendSummary,
         esg_category: keywordCategory ?? summaryResult.category,
         collected_at: collectedAt,
+        week_start: getWeekStartKey(publishedAt),
+        original_snippet: description,
       });
     }
   }
@@ -288,6 +430,7 @@ Deno.serve(async () => {
         skippedByAi,
         skippedByFilter,
         skippedByDuplicate,
+        skippedByBody,
         message: "No rows to insert",
       }),
       {
@@ -298,8 +441,14 @@ Deno.serve(async () => {
 
   const { error } = await supabase.from("news").upsert(allRows, {
     onConflict: "original_url",
-    ignoreDuplicates: true,
+    ignoreDuplicates: false,
   });
+
+  const retentionCutoff = getOldestRetainedWeekStart();
+  const { error: pruneError } = await supabase
+    .from("news")
+    .delete()
+    .lt("week_start", retentionCutoff);
 
   if (error) {
     return new Response(
@@ -309,6 +458,7 @@ Deno.serve(async () => {
         skippedByAi,
         skippedByFilter,
         skippedByDuplicate,
+        skippedByBody,
         error: error.message,
       }),
       {
@@ -324,6 +474,12 @@ Deno.serve(async () => {
       attempted: allRows.length,
       inserted: "upsert completed (deduplicated by original_url)",
       skippedByAi,
+      skippedByFilter,
+      skippedByDuplicate,
+      skippedByBody,
+      retentionCutoff,
+      pruned: pruneError ? null : "older than retention window removed",
+      pruneError: pruneError?.message ?? null,
     }),
     {
       headers: { "Content-Type": "application/json" },
