@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "news:backfill": "npx tsx scripts/backfill-news-local.ts",
-    "news:backfill:supabase": "npx tsx scripts/backfill-news.ts"
+    "news:backfill:supabase": "npx tsx scripts/backfill-news.ts",
+    "jobs:backfill": "npx tsx scripts/backfill-jobs-local.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

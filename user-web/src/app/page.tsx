@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AppShell from "@/components/app-shell";
-import { jobs, newsItems, volunteers } from "@/lib/mock-data";
+import { newsItems, volunteers } from "@/lib/mock-data";
+import { loadRecentJobs } from "@/lib/recent-jobs";
 import { loadRecentNewsPeriod } from "@/lib/recent-news";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizeExternalUrl } from "@/lib/url";
@@ -19,44 +20,24 @@ export default async function Home() {
           title: item.title,
           originalUrl: item.originalUrl,
         }));
-  let homeJobs = jobs.slice(0, 3);
+  const homeJobs = (await loadRecentJobs(3)).map((item) => ({
+    id: item.id,
+    title: item.title,
+    company: item.company,
+    jobType: item.jobType,
+    deadline: item.deadline,
+    applyUrl: item.applyUrl,
+  }));
   let homeVolunteers = volunteers;
 
   const supabase = createSupabaseServerClient();
   if (supabase) {
-    const [jobsRes, volunteerRes] = await Promise.all([
-      supabase
-        .from("jobs")
-        .select("id,title,company,job_type,deadline,apply_url,created_at")
-        .order("deadline", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(3),
-      supabase.from("volunteers").select("*").is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
-    ]);
-
-    if (jobsRes.data && jobsRes.data.length > 0) {
-      homeJobs = jobsRes.data.map((row) => {
-        const label = row.deadline
-          ? (() => {
-              const now = new Date();
-              const end = new Date(`${row.deadline}T23:59:59`);
-              const diffMs = end.getTime() - now.getTime();
-              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-              if (diffDays < 0) return "마감";
-              return `D-${diffDays}`;
-            })()
-          : "상시";
-
-        return {
-          id: String(row.id),
-          title: String(row.title),
-          company: String(row.company),
-          jobType: String(row.job_type ?? "미정"),
-          deadline: label,
-          applyUrl: String(row.apply_url),
-        };
-      });
-    }
+    const volunteerRes = await supabase
+      .from("volunteers")
+      .select("*")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
     if (volunteerRes.data && volunteerRes.data.length > 0) {
       homeVolunteers = volunteerRes.data.map((row) => ({

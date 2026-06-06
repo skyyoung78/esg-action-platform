@@ -14,7 +14,7 @@ import {
 } from "@/lib/info-content";
 
 const tabs = [
-  { id: "overview", label: "ESG 종합" },
+  { id: "overview", label: "ESG 트렌드" },
   { id: "disclosure", label: "기업 공시·평가" },
   { id: "dictionary", label: "용어 사전" },
   { id: "career", label: "직무·취업" },
@@ -44,7 +44,7 @@ export default function InfoTabs({ featuredArticles }: { featuredArticles: NewsI
 
       {activeTab === "overview" ? (
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
-          <h2 className="font-semibold text-lg">ESG 종합 · 주요 기사</h2>
+          <h2 className="font-semibold text-lg">ESG 트렌드 · 주요 기사</h2>
           <p className="text-sm text-slate-600 mt-1">
             최근 7일 ESG 뉴스를 원문 → 핵심 요약 → 대학생 맞춤 트렌드 요약 순서로 제공합니다.
           </p>
