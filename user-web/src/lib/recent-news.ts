@@ -2,16 +2,17 @@ import type { NewsItemView } from "@/components/news-list";
 import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
 import { fetchRecentNews } from "@/lib/live-news";
 import { findLocalNewsByUrl, readLocalNewsStore, type StoredNewsArticle } from "@/lib/local-news-store";
+import { ingestLiveNewsItems } from "@/lib/news-ingest";
 import { newsItems } from "@/lib/mock-data";
 import { getNewsWindow, isWithinNewsWindow, NEWS_ROLLING_DAYS, type NewsWindow } from "@/lib/news-window";
 import type { NewsWeekGroup } from "@/lib/news-week";
-import { buildTemplateSummary } from "@/lib/news-summary";
+import { buildTemplateSummary, buildTemplateSummary5W1H } from "@/lib/news-summary";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { stripHtmlToText } from "@/lib/text-sanitize";
 
 function buildStudentTrendFallback(title: string, body: string): string {
-  const summary = buildTemplateSummary(title, body);
-  return `${summary[2]} 최근 ESG 이슈 흐름을 파악하고, 관련 과제·취업 준비에 참고할 수 있는 주요 기사입니다.`;
+  const summary = buildTemplateSummary5W1H(title, body);
+  return `${summary.what} 최근 ESG 이슈 흐름을 파악하고, 관련 과제·취업 준비에 참고할 수 있는 주요 기사입니다.`;
 }
 
 function summaryToText(summary: unknown): string {
@@ -27,11 +28,7 @@ function summaryToLines(summary: unknown): string[] {
 }
 
 function storedToNewsItem(row: StoredNewsArticle): NewsItemView {
-  const summaryLines = row.summary.map((line) => stripHtmlToText(line)).filter(Boolean) as [
-    string,
-    string,
-    string,
-  ];
+  const summaryLines = row.summary.map((line) => stripHtmlToText(line)).filter(Boolean);
   const summaryText = summaryLines.join(" ");
   return {
     id: row.id,
@@ -80,7 +77,7 @@ function liveToNewsItem(item: {
   snippet: string;
   publishedAt: string;
 }): NewsItemView {
-  const summaryLines = [...buildTemplateSummary(item.title, item.snippet)];
+  const summaryLines = [...buildTemplateSummary(item.title, item.snippet, item.publishedAt)];
 
   return {
     id: `live:${encodeURIComponent(item.originalUrl)}`,
@@ -143,15 +140,18 @@ export async function loadRecentNewsPeriod(
 ): Promise<NewsWeekGroup<NewsItemView>> {
   const window = getNewsWindow(days, now);
 
-  const localItems = readLocalNewsStore()
+  const liveCandidates = (await fetchRecentNews(days)).filter((item) =>
+    isWithinNewsWindow(item.publishedAt, window),
+  );
+
+  await ingestLiveNewsItems(liveCandidates, { maxItems: 8, onlyMissing: true });
+
+  const localItemsAfterIngest = readLocalNewsStore()
     .filter((row) => isWithinNewsWindow(row.published_at, window))
     .map(storedToNewsItem);
 
-  const liveItems = (await fetchRecentNews(days))
-    .filter((item) => {
-      if (!isWithinNewsWindow(item.publishedAt, window)) return false;
-      return !findLocalNewsByUrl(item.originalUrl);
-    })
+  const liveItems = liveCandidates
+    .filter((item) => !findLocalNewsByUrl(item.originalUrl))
     .map(liveToNewsItem);
 
   let dbItems: NewsItemView[] = [];
@@ -174,7 +174,7 @@ export async function loadRecentNewsPeriod(
     }
   }
 
-  let items = mergeNewsItems(localItems, dbItems, liveItems);
+  let items = mergeNewsItems(localItemsAfterIngest, dbItems, liveItems);
   if (items.length === 0) {
     items = mockToNewsItems(now);
   }

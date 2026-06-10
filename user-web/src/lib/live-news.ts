@@ -183,11 +183,22 @@ async function fetchGoogleRssRecentNews(
 /** 접속 시점 기준 최근 N일 ESG 뉴스 전체 수집 (중복 URL 제거) */
 export async function fetchRecentNews(days = NEWS_ROLLING_DAYS): Promise<LiveNewsItem[]> {
   const window = getNewsWindow(days);
+  const merged = new Map<string, LiveNewsItem>();
 
-  const naverItems = await fetchNaverRecentNews(window);
-  if (naverItems.length > 0) return naverItems;
+  for (const item of await fetchNaverRecentNews(window)) {
+    merged.set(item.originalUrl, item);
+  }
 
-  return fetchGoogleRssRecentNews(window);
+  for (const item of await fetchGoogleRssRecentNews(window)) {
+    const existing = merged.get(item.originalUrl);
+    if (!existing || new Date(item.publishedAt) > new Date(existing.publishedAt)) {
+      merged.set(item.originalUrl, item);
+    }
+  }
+
+  return [...merged.values()].sort(
+    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  );
 }
 
 /** @deprecated fetchRecentNews 사용 */

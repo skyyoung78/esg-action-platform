@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { fetchArticleParagraphs, isFetchableArticleUrl } from "@/lib/article-fetcher";
 import { findLocalNewsById } from "@/lib/local-news-store";
+import { hasSubstantiveBody } from "@/lib/news-ingest";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { stripHtmlToText } from "@/lib/text-sanitize";
+
+function bodyToParagraphs(body: string): string[] {
+  return stripHtmlToText(body)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length >= 20);
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,29 +21,51 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "유효한 기사 URL이 필요합니다." }, { status: 400 });
   }
 
+  let storedBody = "";
+
   if (newsId && !newsId.startsWith("live:")) {
     const local = findLocalNewsById(newsId);
     if (local) {
       if (local.original_url !== url) {
         return NextResponse.json({ ok: false, error: "등록된 뉴스와 URL이 일치하지 않습니다." }, { status: 403 });
       }
+      storedBody = local.original_body;
     } else {
       const supabase = createSupabaseServerClient();
       if (supabase) {
         const { data } = await supabase
           .from("news")
-          .select("id,original_url")
+          .select("id,original_url,original_body")
           .eq("id", newsId)
           .maybeSingle();
 
         if (!data || String(data.original_url) !== url) {
           return NextResponse.json({ ok: false, error: "등록된 뉴스와 URL이 일치하지 않습니다." }, { status: 403 });
         }
+        storedBody = String(data.original_body ?? "");
       }
     }
   }
 
-  const result = await fetchArticleParagraphs(url);
+  if (hasSubstantiveBody(storedBody)) {
+    const paragraphs = bodyToParagraphs(storedBody);
+    if (paragraphs.length > 0) {
+      return NextResponse.json({
+        ok: true,
+        paragraphs,
+        source: "stored",
+        error: null,
+      });
+    }
+  }
+
+  let title = "";
+  if (newsId) {
+    const local = findLocalNewsById(newsId);
+    title = local?.title ?? "";
+  }
+
+  const result = await fetchArticleParagraphs(url, { title });
 
   return NextResponse.json({
     ok: result.paragraphs.length > 0,

@@ -6,6 +6,7 @@ import {
   type EsgCategory,
 } from "@/lib/esg-news-filter";
 import { buildEsgTrendDashboard } from "@/lib/esg-trend-analysis";
+import { getSummarySentence } from "@/lib/news-summary";
 
 const CATEGORY_ORDER: EsgCategory[] = ["E", "S", "G"];
 
@@ -218,8 +219,14 @@ export default function InfoEsgOverview({ articles }: { articles: NewsItemView[]
 
                   {item.studentTrendSummary ? (
                     <p className="mt-2 text-sm text-slate-600 line-clamp-2">{item.studentTrendSummary}</p>
-                  ) : item.summaryLines?.[0] ? (
-                    <p className="mt-2 text-sm text-slate-600 line-clamp-2">{item.summaryLines[0]}</p>
+                  ) : item.summaryLines?.length ? (
+                    <p className="mt-2 text-sm text-slate-600 line-clamp-2">
+                      {getSummarySentence(item.summaryLines, {
+                        title: item.title,
+                        body: item.originalSnippet ?? item.searchText,
+                        publishedAt: item.publishedAt,
+                      })}
+                    </p>
                   ) : null}
 
                   <Link

@@ -4,7 +4,8 @@ import AppShell from "@/components/app-shell";
 import NewsArticleReader from "@/components/news-article-reader";
 import { ESG_CATEGORY_BADGE_CLASS, ESG_CATEGORY_LABEL } from "@/lib/esg-news-filter";
 import { getNewsDetailById } from "@/lib/news-detail";
-import { isReadableArticleText } from "@/lib/text-sanitize";
+import { getSummarySentence } from "@/lib/news-summary";
+import { hasSubstantiveBody } from "@/lib/news-ingest";
 import { normalizeExternalUrl } from "@/lib/url";
 
 function formatPublishedDate(publishedAt: string): string {
@@ -35,7 +36,12 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
   const articleUrl = normalizeExternalUrl(article.originalUrl);
   const publishedLabel = formatPublishedDate(article.publishedAt);
   const bodyParagraphs = splitBodyParagraphs(article.originalBody);
-  const hasStoredBody = bodyParagraphs.length > 0 && isReadableArticleText(article.originalBody);
+  const hasStoredBody = hasSubstantiveBody(article.originalBody, article.title);
+  const summarySentence = getSummarySentence(article.summaryLines, {
+    title: article.title,
+    body: article.originalBody,
+    publishedAt: article.publishedAt,
+  });
 
   return (
     <AppShell
@@ -83,6 +89,22 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
                 <p key={`body-${index}`}>{paragraph}</p>
               ))}
             </div>
+          ) : article.originalSnippet ? (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-lg bg-amber-50 border border-amber-100 p-4">
+                <p className="text-xs font-semibold text-amber-800 mb-2">수집된 기사 요약</p>
+                <p className="text-[15px] leading-7 text-slate-800 whitespace-pre-wrap">{article.originalSnippet}</p>
+                <p className="mt-3 text-xs text-amber-700">
+                  전체 원문은 아래 버튼으로 언론사 사이트에서 확인할 수 있습니다.
+                </p>
+              </div>
+              <NewsArticleReader
+                newsId={article.id}
+                originalUrl={article.originalUrl}
+                originalSnippet=""
+                embedded
+              />
+            </div>
           ) : (
             <NewsArticleReader
               newsId={article.id}
@@ -93,17 +115,11 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
           )}
         </section>
 
-        {article.summaryLines.length > 0 ? (
+        {summarySentence ? (
           <section className="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#085041] mb-1">STEP 2</p>
             <h2 className="text-lg font-semibold text-[#111827]">핵심 요약</h2>
-            <ol className="mt-4 space-y-3 text-sm text-slate-700 list-decimal list-inside">
-              {article.summaryLines.map((line, index) => (
-                <li key={`summary-${index}`} className="leading-relaxed">
-                  {line}
-                </li>
-              ))}
-            </ol>
+            <p className="mt-4 text-[15px] leading-7 text-slate-800">{summarySentence}</p>
           </section>
         ) : null}
 

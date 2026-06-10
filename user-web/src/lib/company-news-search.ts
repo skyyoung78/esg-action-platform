@@ -73,7 +73,7 @@ function liveToNewsItem(item: {
   snippet: string;
   publishedAt: string;
 }): NewsItemView {
-  const summaryLines = [...buildTemplateSummary(item.title, item.snippet)];
+  const summaryLines = [...buildTemplateSummary(item.title, item.snippet, item.publishedAt)];
   return {
     id: `live:${encodeURIComponent(item.originalUrl)}`,
     title: item.title,
@@ -89,7 +89,7 @@ function liveToNewsItem(item: {
 }
 
 function storedToNewsItem(row: ReturnType<typeof readLocalNewsStore>[number]): NewsItemView {
-  const summaryLines = row.summary.map((line) => stripHtmlToText(line)).filter(Boolean) as [string, string, string];
+  const summaryLines = row.summary.map((line) => stripHtmlToText(line)).filter(Boolean);
   return {
     id: row.id,
     title: stripHtmlToText(row.title),

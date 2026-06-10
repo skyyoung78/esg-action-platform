@@ -1,6 +1,7 @@
 import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
 import { fetchRecentNews } from "@/lib/live-news";
 import { findLocalNewsById, findLocalNewsByUrl } from "@/lib/local-news-store";
+import { articleNeedsIngest, hasSubstantiveBody, ingestNewsByUrl } from "@/lib/news-ingest";
 import { newsItems } from "@/lib/mock-data";
 import { buildStudentTrendSummary, buildTemplateSummary } from "@/lib/news-summary";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -43,7 +44,7 @@ function storedToDetail(row: {
   source: string;
   published_at: string;
   original_body: string;
-  summary: [string, string, string];
+  summary: string[];
   student_trend_summary: string;
   esg_category: EsgCategory;
   original_snippet: string;
@@ -130,7 +131,7 @@ async function liveToDetail(id: string): Promise<NewsDetail | null> {
   const item = recent.find((row) => row.originalUrl === originalUrl);
   if (!item) return null;
 
-  const summaryLines = [...buildTemplateSummary(item.title, item.snippet)];
+  const summaryLines = [...buildTemplateSummary(item.title, item.snippet, item.publishedAt)];
 
   return {
     id,
@@ -148,7 +149,13 @@ async function liveToDetail(id: string): Promise<NewsDetail | null> {
 
 export async function getNewsDetailById(id: string): Promise<NewsDetail | null> {
   const decodedId = decodeURIComponent(id);
-  const local = findLocalNewsById(decodedId);
+  let local = findLocalNewsById(decodedId);
+
+  if (local && articleNeedsIngest(local)) {
+    const refreshed = await ingestNewsByUrl(local.original_url, local.title, local.original_snippet);
+    if (refreshed) local = refreshed;
+  }
+
   if (local) {
     return storedToDetail(local);
   }

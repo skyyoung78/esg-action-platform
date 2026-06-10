@@ -1,7 +1,7 @@
 export type NewsItem = {
   id: string;
   title: string;
-  summary: [string, string, string];
+  summary: string[];
   category: "E" | "S" | "G";
   source: string;
   originalUrl: string;

@@ -7,6 +7,7 @@ import {
   ESG_CATEGORY_LABEL,
   type EsgCategory,
 } from "@/lib/esg-news-filter";
+import { getSummarySentence } from "@/lib/news-summary";
 import type { NewsWeekGroup } from "@/lib/news-week";
 import { normalizeExternalUrl } from "@/lib/url";
 
@@ -51,8 +52,13 @@ function formatPublishedDate(publishedAt?: string): string | null {
 function NewsArticleCard({ item }: { item: NewsItemView }) {
   const articleUrl = normalizeExternalUrl(item.originalUrl);
   const publishedLabel = formatPublishedDate(item.publishedAt);
-  const preview =
-    item.summaryLines?.[0] ?? item.originalSnippet ?? item.searchText ?? "";
+  const preview = item.summaryLines?.length
+    ? getSummarySentence(item.summaryLines, {
+        title: item.title,
+        body: item.originalSnippet ?? item.searchText,
+        publishedAt: item.publishedAt,
+      })
+    : item.originalSnippet ?? item.searchText ?? "";
 
   return (
     <article className="border border-slate-100 rounded-lg bg-white p-4 hover:border-[#085041]/30 transition-colors">

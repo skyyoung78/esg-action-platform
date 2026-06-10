@@ -8,7 +8,7 @@ export type StoredNewsArticle = {
   original_url: string;
   published_at: string;
   original_body: string;
-  summary: [string, string, string];
+  summary: string[];
   student_trend_summary: string;
   esg_category: "E" | "S" | "G";
   source: string;
