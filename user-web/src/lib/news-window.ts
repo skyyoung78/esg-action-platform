@@ -2,6 +2,10 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export const NEWS_ROLLING_DAYS = 7;
 
+/** 기업별 분석 탭: 최근 N년 뉴스 수집·분석 기간 */
+export const COMPANY_NEWS_ANALYSIS_YEARS = 2;
+export const COMPANY_NEWS_ANALYSIS_DAYS = COMPANY_NEWS_ANALYSIS_YEARS * 365;
+
 export type NewsWindow = {
   days: number;
   start: Date;
