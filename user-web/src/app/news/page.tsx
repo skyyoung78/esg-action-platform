@@ -1,20 +1,20 @@
 import AppShell from "@/components/app-shell";
 import NewsTabs from "@/components/news-tabs";
-import { getNewsWindow } from "@/lib/news-window";
-import { buildEmptyPeriod, loadRecentNewsPeriod } from "@/lib/recent-news";
+import { loadNewsPageData } from "@/lib/recent-news";
 
 export default async function NewsPage() {
-  const period = await loadRecentNewsPeriod();
-  const weeks = period.items.length > 0 ? [period] : [buildEmptyPeriod(getNewsWindow())];
+  const { weeks, archiveItems, recentWindow } = await loadNewsPageData();
 
   return (
     <AppShell
       title="ESG 뉴스"
-      description="접속일 기준 최근 7일간의 ESG 뉴스와 기업별 취업 준비 대시보드를 확인할 수 있습니다."
+      description="최근 7일 ESG 뉴스를 확인하고, 키워드 검색 시 2026.6.1 이후 저장된 전체 기사에서 찾을 수 있습니다."
     >
       <NewsTabs
         weeks={weeks}
-        emptyMessage="최근 7일간 수집된 ESG 뉴스가 없습니다. 잠시 후 다시 확인해 주세요."
+        archiveItems={archiveItems}
+        recentPeriodLabel={recentWindow.label}
+        emptyMessage="최근 7일간 수집된 ESG 뉴스가 없습니다. 키워드 검색으로 저장된 이전 기사를 찾아볼 수 있습니다."
       />
     </AppShell>
   );

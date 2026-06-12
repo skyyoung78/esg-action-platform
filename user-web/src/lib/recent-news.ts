@@ -1,11 +1,18 @@
 import type { NewsItemView } from "@/components/news-list";
 import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
-import { fetchRecentNews } from "@/lib/live-news";
+import { fetchAccumulatedNews } from "@/lib/live-news";
 import { findLocalNewsByUrl, readLocalNewsStore, type StoredNewsArticle } from "@/lib/local-news-store";
 import { ingestLiveNewsItems } from "@/lib/news-ingest";
 import { newsItems } from "@/lib/mock-data";
-import { getNewsWindow, isWithinNewsWindow, NEWS_ROLLING_DAYS, type NewsWindow } from "@/lib/news-window";
-import type { NewsWeekGroup } from "@/lib/news-week";
+import {
+  getAccumulationNewsWindow,
+  getNewsWindow,
+  isWithinNewsWindow,
+  NEWS_INGEST_BATCH_SIZE,
+  NEWS_ROLLING_DAYS,
+  type NewsWindow,
+} from "@/lib/news-window";
+import { groupByWeek, type NewsWeekGroup } from "@/lib/news-week";
 import { buildTemplateSummary, buildTemplateSummary5W1H } from "@/lib/news-summary";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { stripHtmlToText } from "@/lib/text-sanitize";
@@ -134,17 +141,17 @@ function mergeNewsItems(
   );
 }
 
-export async function loadRecentNewsPeriod(
-  days = NEWS_ROLLING_DAYS,
+/** 2026.6.1 이후 누적 ESG 뉴스 로드 (로컬 저장소 + DB + 라이브 수집 병합) */
+export async function loadAccumulatedNewsItems(
   now: Date = new Date(),
-): Promise<NewsWeekGroup<NewsItemView>> {
-  const window = getNewsWindow(days, now);
+): Promise<{ window: NewsWindow; items: NewsItemView[] }> {
+  const window = getAccumulationNewsWindow(now);
 
-  const liveCandidates = (await fetchRecentNews(days)).filter((item) =>
+  const liveCandidates = (await fetchAccumulatedNews(window)).filter((item) =>
     isWithinNewsWindow(item.publishedAt, window),
   );
 
-  await ingestLiveNewsItems(liveCandidates, { maxItems: 8, onlyMissing: true });
+  await ingestLiveNewsItems(liveCandidates, { maxItems: NEWS_INGEST_BATCH_SIZE, onlyMissing: true });
 
   const localItemsAfterIngest = readLocalNewsStore()
     .filter((row) => isWithinNewsWindow(row.published_at, window))
@@ -164,7 +171,7 @@ export async function loadRecentNewsPeriod(
       .gte("published_at", window.startIso)
       .lte("published_at", window.endIso)
       .order("published_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
 
     if (data && data.length > 0) {
       dbItems = data
@@ -179,6 +186,42 @@ export async function loadRecentNewsPeriod(
     items = mockToNewsItems(now);
   }
 
+  return { window, items };
+}
+
+/** 주간 탭으로 그룹핑된 누적 뉴스 */
+export async function loadAccumulatedNewsWeeks(now: Date = new Date()): Promise<NewsWeekGroup<NewsItemView>[]> {
+  const { window, items } = await loadAccumulatedNewsItems(now);
+  if (items.length === 0) return [buildEmptyPeriod(window)];
+  return groupByWeek(items, (item) => item.publishedAt ?? "", now);
+}
+
+export type NewsPageData = {
+  weeks: NewsWeekGroup<NewsItemView>[];
+  archiveItems: NewsItemView[];
+  recentWindow: NewsWindow;
+};
+
+/** 뉴스 페이지: 최근 7일 표시 + 저장된 전체 기사(검색용) */
+export async function loadNewsPageData(now: Date = new Date()): Promise<NewsPageData> {
+  const { items: archiveItems } = await loadAccumulatedNewsItems(now);
+  const recentWindow = getNewsWindow(NEWS_ROLLING_DAYS, now);
+
+  const recentItems = archiveItems.filter((item) =>
+    isWithinNewsWindow(item.publishedAt ?? "", recentWindow),
+  );
+
+  const weeks =
+    recentItems.length > 0
+      ? groupByWeek(recentItems, (item) => item.publishedAt ?? "", now)
+      : [buildEmptyPeriod(recentWindow)];
+
+  return { weeks, archiveItems, recentWindow };
+}
+
+/** @deprecated loadAccumulatedNewsItems 사용 — info/홈 등 단일 목록용 */
+export async function loadRecentNewsPeriod(now: Date = new Date()): Promise<NewsWeekGroup<NewsItemView>> {
+  const { window, items } = await loadAccumulatedNewsItems(now);
   return {
     weekStart: window.key,
     label: window.label,

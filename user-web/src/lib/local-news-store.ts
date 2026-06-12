@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isWithinAccumulationWindow } from "@/lib/news-window";
 
 export type StoredNewsArticle = {
   id: string;
@@ -40,6 +41,10 @@ export function readLocalNewsStore(): StoredNewsArticle[] {
   }
 }
 
+export function filterAccumulatedArticles(articles: StoredNewsArticle[]): StoredNewsArticle[] {
+  return articles.filter((article) => isWithinAccumulationWindow(article.published_at));
+}
+
 export function writeLocalNewsStore(articles: StoredNewsArticle[]): void {
   const path = storePath();
   const dir = dirname(path);
@@ -47,7 +52,7 @@ export function writeLocalNewsStore(articles: StoredNewsArticle[]): void {
 
   const payload: NewsStoreFile = {
     updatedAt: new Date().toISOString(),
-    articles,
+    articles: filterAccumulatedArticles(articles),
   };
 
   writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, "utf8");

@@ -44,9 +44,9 @@ export default function InfoTabs({ featuredArticles }: { featuredArticles: NewsI
 
       {activeTab === "overview" ? (
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
-          <h2 className="font-semibold text-lg">ESG 트렌드 · 7일 분석 대시보드</h2>
+          <h2 className="font-semibold text-lg">ESG 트렌드 · 누적 분석 대시보드</h2>
           <p className="text-sm text-slate-600 mt-1">
-            최근 7일 뉴스에서 많이 언급된 E/S/G 영역을 분석하고, 자소서·면접 준비에 활용할 수 있는 인사이트를 제공합니다.
+            2026.6.1 이후 누적된 E/S/G 뉴스에서 많이 언급된 영역을 분석하고, 자소서·면접 준비에 활용할 수 있는 인사이트를 제공합니다.
           </p>
           <div className="mt-5">
             <InfoEsgOverview articles={featuredArticles} />

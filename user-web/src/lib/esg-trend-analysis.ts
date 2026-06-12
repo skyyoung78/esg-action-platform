@@ -4,7 +4,7 @@ import {
   ESG_CATEGORY_LABEL,
   type EsgCategory,
 } from "@/lib/esg-news-filter";
-import { NEWS_ROLLING_DAYS } from "@/lib/news-window";
+const ACCUMULATION_PERIOD_LABEL = "2026.6.1 이후 누적";
 
 export type CategoryStat = {
   category: EsgCategory;
@@ -103,7 +103,7 @@ function buildTrendSummary(
   total: number,
 ): string {
   if (total === 0) {
-    return "최근 7일간 분석할 ESG 뉴스가 충분하지 않습니다.";
+    return `${ACCUMULATION_PERIOD_LABEL} 기간에 분석할 ESG 뉴스가 충분하지 않습니다.`;
   }
 
   const hot = stats.find((s) => s.category === hotCategory);
@@ -119,7 +119,7 @@ function buildTrendSummary(
     .map((s) => `${s.label} ${s.percent}%`)
     .join(", ");
 
-  return `최근 ${NEWS_ROLLING_DAYS}일 ${total}건의 ESG 뉴스를 분석한 결과, ${hot?.label ?? "환경(E)"} 영역이 ${hot?.percent ?? 0}%로 가장 많이 다뤄졌습니다.${secondary ? ` 이어서 ${secondary} 순입니다.` : ""} ${keywordPart}`;
+  return `${ACCUMULATION_PERIOD_LABEL} ${total}건의 ESG 뉴스를 분석한 결과, ${hot?.label ?? "환경(E)"} 영역이 ${hot?.percent ?? 0}%로 가장 많이 다뤄졌습니다.${secondary ? ` 이어서 ${secondary} 순입니다.` : ""} ${keywordPart}`;
 }
 
 function categoryGuide(category: EsgCategory, keywords: KeywordStat[], examples: string[]): CareerGuide {
@@ -218,14 +218,14 @@ export function buildEsgTrendDashboard(articles: NewsItemView[]): EsgTrendDashbo
   const secondStat = [...categoryStats].sort((a, b) => b.count - a.count)[1];
 
   return {
-    periodLabel: `최근 ${NEWS_ROLLING_DAYS}일`,
+    periodLabel: ACCUMULATION_PERIOD_LABEL,
     totalArticles,
     hotCategory,
     hotCategoryLabel: ESG_CATEGORY_LABEL[hotCategory],
     categoryStats,
     topKeywords,
     trendSummary: buildTrendSummary(categoryStats, hotCategory, topKeywords, totalArticles),
-    careerFocus: `이번 주는 ${ESG_CATEGORY_LABEL[hotCategory]} 영역을 우선 준비하고${secondStat && secondStat.count > 0 ? `, ${secondStat.label} 이슈를 보조 키워드로` : ""} 자소서·면접에 활용하는 것을 추천합니다.`,
+    careerFocus: `누적 뉴스 기준 ${ESG_CATEGORY_LABEL[hotCategory]} 영역을 우선 준비하고${secondStat && secondStat.count > 0 ? `, ${secondStat.label} 이슈를 보조 키워드로` : ""} 자소서·면접에 활용하는 것을 추천합니다.`,
     guides,
     headlineExamples,
   };

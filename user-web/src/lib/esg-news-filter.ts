@@ -98,12 +98,13 @@ export const ESG_NEWS_SEARCH_KEYWORDS: string[] = [
 ].filter((keyword, index, arr) => arr.indexOf(keyword) === index);
 
 /** Google RSS OR 쿼리 배치 (한 번에 너무 길면 분할) */
-export function buildGoogleRssOrQueries(batchSize = 8): string[] {
+export function buildGoogleRssOrQueries(batchSize = 8, afterDate?: string): string[] {
   const quoted = ESG_NEWS_SEARCH_KEYWORDS.map((kw) => `"${kw}"`);
   const batches: string[] = [];
+  const dateSuffix = afterDate ? ` after:${afterDate}` : "";
 
   for (let i = 0; i < quoted.length; i += batchSize) {
-    batches.push(quoted.slice(i, i + batchSize).join(" OR "));
+    batches.push(`${quoted.slice(i, i + batchSize).join(" OR ")}${dateSuffix}`);
   }
 
   return batches;

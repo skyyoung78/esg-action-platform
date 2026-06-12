@@ -14,10 +14,17 @@ type TabId = (typeof tabs)[number]["id"];
 
 type NewsTabsProps = {
   weeks: NewsWeekGroup<NewsItemView>[];
+  archiveItems?: NewsItemView[];
+  recentPeriodLabel?: string;
   emptyMessage?: string;
 };
 
-export default function NewsTabs({ weeks, emptyMessage }: NewsTabsProps) {
+export default function NewsTabs({
+  weeks,
+  archiveItems,
+  recentPeriodLabel,
+  emptyMessage,
+}: NewsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("recent");
 
   return (
@@ -43,10 +50,16 @@ export default function NewsTabs({ weeks, emptyMessage }: NewsTabsProps) {
         <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-slate-100">
           <h2 className="font-semibold text-lg">최근 7일 ESG 뉴스</h2>
           <p className="text-sm text-slate-600 mt-1">
-            E/S/G 카테고리별로 필터링하고, 각 기사의 원문·요약·트렌드를 확인할 수 있습니다.
+            접속일 기준 최근 7일 E/S/G 뉴스를 주간별로 보여줍니다. 키워드 검색 시 2026.6.1 이후 저장된 전체 기사에서도
+            찾을 수 있습니다.
           </p>
           <div className="mt-5">
-            <NewsList weeks={weeks} emptyMessage={emptyMessage} />
+            <NewsList
+              weeks={weeks}
+              archiveItems={archiveItems}
+              recentPeriodLabel={recentPeriodLabel}
+              emptyMessage={emptyMessage}
+            />
           </div>
         </section>
       ) : null}

@@ -9,6 +9,7 @@ import {
   writeLocalNewsStore,
   type StoredNewsArticle,
 } from "@/lib/local-news-store";
+import { isWithinAccumulationWindow } from "@/lib/news-window";
 import { getWeekStartKey } from "@/lib/news-week";
 import { buildStudentTrendSummary, buildTemplateSummary } from "@/lib/news-summary";
 import { isReadableArticleText, stripHtmlToText } from "@/lib/text-sanitize";
@@ -117,6 +118,7 @@ export async function ingestLiveNewsItems(
   const onlyMissing = options?.onlyMissing ?? true;
 
   const candidates = items.filter((item) => {
+    if (!isWithinAccumulationWindow(item.publishedAt)) return false;
     if (!onlyMissing) return true;
     const existing = findLocalNewsByUrl(item.originalUrl);
     return articleNeedsIngest(existing);
@@ -144,7 +146,7 @@ export async function ingestLiveNewsItems(
     const after = merged.get(stored.original_url);
     if (after && after !== before) {
       saved += 1;
-    } else if (after && articleNeedsIngest(before) && !articleNeedsIngest(after)) {
+    } else if (after && articleNeedsIngest(before ?? null) && !articleNeedsIngest(after)) {
       saved += 1;
     }
   }

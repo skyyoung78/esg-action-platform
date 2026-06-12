@@ -3,7 +3,12 @@ import {
   ESG_NEWS_SEARCH_KEYWORDS,
   isEsgRelatedNews,
 } from "@/lib/esg-news-filter";
-import { getNewsWindow, isWithinNewsWindow, NEWS_ROLLING_DAYS } from "@/lib/news-window";
+import {
+  getAccumulationNewsWindow,
+  isWithinNewsWindow,
+  NEWS_ACCUMULATION_START_KEY,
+  type NewsWindow,
+} from "@/lib/news-window";
 
 export type LiveNewsItem = {
   title: string;
@@ -78,7 +83,7 @@ function cleanCdata(input: string): string {
 function addIfRelevant(
   gathered: Map<string, LiveNewsItem>,
   item: LiveNewsItem,
-  window = getNewsWindow(NEWS_ROLLING_DAYS),
+  window: NewsWindow,
 ): void {
   if (!isEsgRelatedNews(item.title, item.snippet)) return;
   if (!isWithinNewsWindow(item.publishedAt, window)) return;
@@ -89,9 +94,7 @@ function addIfRelevant(
   }
 }
 
-async function fetchNaverRecentNews(
-  window = getNewsWindow(NEWS_ROLLING_DAYS),
-): Promise<LiveNewsItem[]> {
+async function fetchNaverRecentNews(window: NewsWindow): Promise<LiveNewsItem[]> {
   const clientId = process.env.NAVER_CLIENT_ID;
   const clientSecret = process.env.NAVER_CLIENT_SECRET;
   if (!clientId || !clientSecret) return [];
@@ -137,11 +140,9 @@ async function fetchNaverRecentNews(
   );
 }
 
-async function fetchGoogleRssRecentNews(
-  window = getNewsWindow(NEWS_ROLLING_DAYS),
-): Promise<LiveNewsItem[]> {
+async function fetchGoogleRssRecentNews(window: NewsWindow): Promise<LiveNewsItem[]> {
   const gathered = new Map<string, LiveNewsItem>();
-  const orQueries = buildGoogleRssOrQueries(8);
+  const orQueries = buildGoogleRssOrQueries(8, NEWS_ACCUMULATION_START_KEY);
 
   for (const query of orQueries) {
     const rssUrl = new URL("https://news.google.com/rss/search");
@@ -180,9 +181,8 @@ async function fetchGoogleRssRecentNews(
   );
 }
 
-/** 접속 시점 기준 최근 N일 ESG 뉴스 전체 수집 (중복 URL 제거) */
-export async function fetchRecentNews(days = NEWS_ROLLING_DAYS): Promise<LiveNewsItem[]> {
-  const window = getNewsWindow(days);
+/** 2026.6.1 이후 누적 구간 ESG 뉴스 수집 (중복 URL 제거) */
+export async function fetchAccumulatedNews(window = getAccumulationNewsWindow()): Promise<LiveNewsItem[]> {
   const merged = new Map<string, LiveNewsItem>();
 
   for (const item of await fetchNaverRecentNews(window)) {
@@ -201,8 +201,13 @@ export async function fetchRecentNews(days = NEWS_ROLLING_DAYS): Promise<LiveNew
   );
 }
 
-/** @deprecated fetchRecentNews 사용 */
+/** @deprecated fetchAccumulatedNews 사용 */
+export async function fetchRecentNews(window?: NewsWindow): Promise<LiveNewsItem[]> {
+  return fetchAccumulatedNews(window ?? getAccumulationNewsWindow());
+}
+
+/** @deprecated fetchAccumulatedNews 사용 */
 export async function fetchLiveNews(limit = 12): Promise<LiveNewsItem[]> {
-  const items = await fetchRecentNews(NEWS_ROLLING_DAYS);
+  const items = await fetchAccumulatedNews();
   return items.slice(0, limit);
 }

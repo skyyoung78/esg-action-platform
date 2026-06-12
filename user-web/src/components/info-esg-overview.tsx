@@ -45,7 +45,7 @@ export default function InfoEsgOverview({ articles }: { articles: NewsItemView[]
   if (articles.length === 0) {
     return (
       <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">
-        최근 7일간 수집된 ESG 뉴스가 없습니다. 뉴스 수집 후 영역별 트렌드 분석과 자소서·면접 가이드를 확인할 수
+        2026.6.1 이후 수집된 ESG 뉴스가 없습니다. 뉴스 수집 후 영역별 트렌드 분석과 자소서·면접 가이드를 확인할 수
         있습니다.
       </p>
     );
@@ -243,7 +243,7 @@ export default function InfoEsgOverview({ articles }: { articles: NewsItemView[]
       </section>
 
       <Link href="/news" className="inline-flex text-sm font-medium text-[#085041] hover:underline">
-        최근 7일 전체 뉴스 보기 →
+        누적 ESG 뉴스 전체 보기 →
       </Link>
     </div>
   );

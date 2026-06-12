@@ -35,8 +35,32 @@ const CATEGORY_ORDER: EsgCategory[] = ["E", "S", "G"];
 
 type NewsListProps = {
   weeks: NewsWeekGroup<NewsItemView>[];
+  archiveItems?: NewsItemView[];
+  recentPeriodLabel?: string;
   emptyMessage?: string;
 };
+
+function buildSearchHaystack(item: NewsItemView): string {
+  return [
+    item.title,
+    item.source ?? "",
+    item.searchText ?? "",
+    item.originalSnippet ?? "",
+    item.studentTrendSummary ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function dedupeNewsItems(items: NewsItemView[]): NewsItemView[] {
+  const merged = new Map<string, NewsItemView>();
+  for (const item of items) {
+    merged.set(item.originalUrl || item.id, item);
+  }
+  return [...merged.values()].sort(
+    (a, b) => new Date(b.publishedAt ?? 0).getTime() - new Date(a.publishedAt ?? 0).getTime(),
+  );
+}
 
 function formatPublishedDate(publishedAt?: string): string | null {
   if (!publishedAt) return null;
@@ -117,10 +141,22 @@ function NewsArticleList({ items }: { items: NewsItemView[] }) {
   );
 }
 
-export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
+export default function NewsList({
+  weeks,
+  archiveItems,
+  recentPeriodLabel,
+  emptyMessage,
+}: NewsListProps) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | EsgCategory>("all");
   const [selectedWeek, setSelectedWeek] = useState(weeks[0]?.weekStart ?? "");
+
+  const isSearchMode = query.trim().length > 0;
+
+  const searchPool = useMemo(
+    () => dedupeNewsItems(archiveItems ?? weeks.flatMap((week) => week.items)),
+    [archiveItems, weeks],
+  );
 
   useEffect(() => {
     if (!weeks.some((week) => week.weekStart === selectedWeek)) {
@@ -129,7 +165,8 @@ export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
   }, [weeks, selectedWeek]);
 
   const activeWeek = weeks.find((week) => week.weekStart === selectedWeek) ?? weeks[0];
-  const items = activeWeek?.items ?? [];
+  const browseItems = activeWeek?.items ?? [];
+  const items = isSearchMode ? searchPool : browseItems;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,8 +178,7 @@ export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
 
       if (!q) return true;
 
-      const haystack = `${item.title} ${item.source ?? ""} ${item.searchText ?? ""}`.toLowerCase();
-      return haystack.includes(q);
+      return buildSearchHaystack(item).includes(q);
     });
   }, [items, query, categoryFilter]);
 
@@ -180,32 +216,38 @@ export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
   return (
     <div>
       <div className="mb-4 space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {weeks.map((week) => {
-            const active = selectedWeek === week.weekStart;
-            return (
-              <button
-                key={week.weekStart}
-                type="button"
-                onClick={() => setSelectedWeek(week.weekStart)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  active
-                    ? "bg-[#085041] text-white"
-                    : "bg-white border border-slate-200 text-slate-600 hover:border-[#085041]/40"
-                }`}
-              >
-                {week.label}
-                <span className="ml-1 opacity-80">({week.items.length})</span>
-              </button>
-            );
-          })}
-        </div>
+        {!isSearchMode ? (
+          <div className="flex flex-wrap gap-2">
+            {weeks.map((week) => {
+              const active = selectedWeek === week.weekStart;
+              return (
+                <button
+                  key={week.weekStart}
+                  type="button"
+                  onClick={() => setSelectedWeek(week.weekStart)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-[#085041] text-white"
+                      : "bg-white border border-slate-200 text-slate-600 hover:border-[#085041]/40"
+                  }`}
+                >
+                  {week.label}
+                  <span className="ml-1 opacity-80">({week.items.length})</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-[#085041] bg-[#085041]/5 border border-[#085041]/15 rounded-md px-3 py-2">
+            저장된 전체 기사 {searchPool.length}건에서 검색 중입니다. 검색어를 지우면 최근 7일 목록으로 돌아갑니다.
+          </p>
+        )}
 
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="최근 7일 뉴스 내 키워드 검색 (예: 탄소중립, 사회공헌)"
+          placeholder="키워드 검색 — 저장된 전체 기사 포함 (예: 탄소중립, 사회공헌)"
           className="w-full border border-slate-200 rounded-md px-3 py-2.5 text-sm bg-white"
           autoComplete="off"
         />
@@ -231,10 +273,11 @@ export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
         </div>
 
         <p className="text-xs text-slate-500">
-          {activeWeek?.label} ·{" "}
-          {query.trim() || categoryFilter !== "all"
-            ? `${filtered.length}건 / ${items.length}건`
-            : `${items.length}건`}
+          {isSearchMode
+            ? `저장된 전체 ${searchPool.length}건 중 ${filtered.length}건`
+            : `${recentPeriodLabel ?? activeWeek?.label ?? "최근 7일"} · ${
+                categoryFilter !== "all" ? `${filtered.length}건 / ${browseItems.length}건` : `${browseItems.length}건`
+              }`}
           {" · "}제목 또는 버튼을 눌러 원문·요약·트렌드를 확인하세요.
         </p>
       </div>
@@ -260,7 +303,7 @@ export default function NewsList({ weeks, emptyMessage }: NewsListProps) {
       ) : (
         <p className="text-sm text-slate-500 bg-white rounded-xl border border-slate-100 p-6 text-center">
           {query.trim()
-            ? `'${query.trim()}'에 해당하는 뉴스가 없습니다.`
+            ? `'${query.trim()}'에 해당하는 뉴스가 저장된 전체 기사에서 없습니다.`
             : "선택한 기간·카테고리에 해당하는 뉴스가 없습니다."}
         </p>
       )}

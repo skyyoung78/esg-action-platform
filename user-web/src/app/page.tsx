@@ -66,7 +66,7 @@ export default async function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <article className="bg-white rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">최근 7일 뉴스 TOP3</h3>
+            <h3 className="font-semibold">ESG 뉴스 TOP3</h3>
             <Link href="/news" className="text-xs text-[#085041] hover:underline">
               전체 뉴스 보기
             </Link>
