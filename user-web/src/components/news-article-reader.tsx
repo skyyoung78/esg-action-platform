@@ -34,6 +34,13 @@ export default function NewsArticleReader({
       setLoading(true);
       setError(null);
 
+      const timeout = setTimeout(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setError("기사 본문 로딩 시간이 초과되었습니다. 언론사 원문 링크를 이용해 주세요.");
+        }
+      }, 20_000);
+
       try {
         const params = new URLSearchParams({ url: articleUrl!, id: newsId });
         const response = await fetch(`/api/news/content?${params.toString()}`);
@@ -53,6 +60,7 @@ export default function NewsArticleReader({
           setError("기사 본문을 불러오는 중 오류가 발생했습니다.");
         }
       } finally {
+        clearTimeout(timeout);
         if (!cancelled) {
           setLoading(false);
         }

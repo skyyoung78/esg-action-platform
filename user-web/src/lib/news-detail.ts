@@ -1,9 +1,7 @@
 import { classifyEsgCategory, isEsgRelatedNews } from "@/lib/esg-news-filter";
-import { fetchRecentNews } from "@/lib/live-news";
 import { findLocalNewsById, findLocalNewsByUrl } from "@/lib/local-news-store";
-import { articleNeedsIngest, hasSubstantiveBody, ingestNewsByUrl } from "@/lib/news-ingest";
 import { newsItems } from "@/lib/mock-data";
-import { buildStudentTrendSummary, buildTemplateSummary } from "@/lib/news-summary";
+import { buildStudentTrendSummary } from "@/lib/news-summary";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { stripHtmlToText } from "@/lib/text-sanitize";
 import type { EsgCategory } from "@/lib/esg-news-filter";
@@ -117,7 +115,7 @@ function mockToDetail(id: string): NewsDetail | null {
   };
 }
 
-async function liveToDetail(id: string): Promise<NewsDetail | null> {
+function liveIdToDetail(id: string): NewsDetail | null {
   if (!id.startsWith("live:")) return null;
 
   let originalUrl = "";
@@ -127,46 +125,33 @@ async function liveToDetail(id: string): Promise<NewsDetail | null> {
     return null;
   }
 
-  const recent = await fetchRecentNews();
-  const item = recent.find((row) => row.originalUrl === originalUrl);
-  if (!item) return null;
-
-  const summaryLines = [...buildTemplateSummary(item.title, item.snippet, item.publishedAt)];
+  const stored = findLocalNewsByUrl(originalUrl);
+  if (stored) return storedToDetail(stored);
 
   return {
     id,
-    title: item.title,
-    originalUrl: item.originalUrl,
-    source: item.source,
-    publishedAt: item.publishedAt,
-    category: classifyEsgCategory(item.title, item.snippet) ?? "E",
-    summaryLines,
-    originalBody: item.snippet,
-    originalSnippet: item.snippet,
-    studentTrendSummary: buildStudentTrendSummary(item.title, item.snippet),
+    title: "ESG 뉴스",
+    originalUrl,
+    source: "",
+    publishedAt: new Date().toISOString(),
+    category: "E",
+    summaryLines: [],
+    originalBody: "",
+    originalSnippet: "",
+    studentTrendSummary: "",
   };
 }
 
 export async function getNewsDetailById(id: string): Promise<NewsDetail | null> {
   const decodedId = decodeURIComponent(id);
-  let local = findLocalNewsById(decodedId);
-
-  if (local && articleNeedsIngest(local)) {
-    const refreshed = await ingestNewsByUrl(local.original_url, local.title, local.original_snippet);
-    if (refreshed) local = refreshed;
-  }
+  const local = findLocalNewsById(decodedId);
 
   if (local) {
     return storedToDetail(local);
   }
 
   if (decodedId.startsWith("live:")) {
-    const liveDetail = await liveToDetail(decodedId);
-    if (liveDetail) {
-      const byUrl = findLocalNewsByUrl(liveDetail.originalUrl);
-      if (byUrl) return storedToDetail(byUrl);
-    }
-    return liveDetail;
+    return liveIdToDetail(decodedId);
   }
 
   const supabase = createSupabaseServerClient();

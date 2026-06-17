@@ -14,17 +14,11 @@ type TabId = (typeof tabs)[number]["id"];
 
 type NewsTabsProps = {
   weeks: NewsWeekGroup<NewsItemView>[];
-  archiveItems?: NewsItemView[];
   recentPeriodLabel?: string;
   emptyMessage?: string;
 };
 
-export default function NewsTabs({
-  weeks,
-  archiveItems,
-  recentPeriodLabel,
-  emptyMessage,
-}: NewsTabsProps) {
+export default function NewsTabs({ weeks, recentPeriodLabel, emptyMessage }: NewsTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("recent");
 
   return (
@@ -54,12 +48,7 @@ export default function NewsTabs({
             찾을 수 있습니다.
           </p>
           <div className="mt-5">
-            <NewsList
-              weeks={weeks}
-              archiveItems={archiveItems}
-              recentPeriodLabel={recentPeriodLabel}
-              emptyMessage={emptyMessage}
-            />
+            <NewsList weeks={weeks} recentPeriodLabel={recentPeriodLabel} emptyMessage={emptyMessage} />
           </div>
         </section>
       ) : null}

@@ -5,10 +5,14 @@ import {
 } from "@/lib/esg-news-filter";
 import {
   getAccumulationNewsWindow,
+  getNewsWindow,
   isWithinNewsWindow,
   NEWS_ACCUMULATION_START_KEY,
+  NEWS_ROLLING_DAYS,
   type NewsWindow,
 } from "@/lib/news-window";
+
+const FETCH_TIMEOUT_MS = 8_000;
 
 export type LiveNewsItem = {
   title: string;
@@ -73,6 +77,25 @@ function extractTag(block: string, tag: string): string {
   return match?.[1]?.trim() ?? "";
 }
 
+function windowAfterDateKey(window: NewsWindow): string {
+  const date = window.start;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function cleanCdata(input: string): string {
   return input
     .replace(/^<!\[CDATA\[/, "")
@@ -107,12 +130,11 @@ async function fetchNaverRecentNews(window: NewsWindow): Promise<LiveNewsItem[]>
     url.searchParams.set("display", "100");
     url.searchParams.set("sort", "date");
 
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithTimeout(url.toString(), {
       headers: {
         "X-Naver-Client-Id": clientId,
         "X-Naver-Client-Secret": clientSecret,
       },
-      cache: "no-store",
     });
 
     if (!response.ok) continue;
@@ -151,7 +173,7 @@ async function fetchGoogleRssRecentNews(window: NewsWindow): Promise<LiveNewsIte
     rssUrl.searchParams.set("gl", "KR");
     rssUrl.searchParams.set("ceid", "KR:ko");
 
-    const response = await fetch(rssUrl.toString(), { cache: "no-store" });
+    const response = await fetchWithTimeout(rssUrl.toString());
     if (!response.ok) continue;
 
     const xml = await response.text();
@@ -173,6 +195,55 @@ async function fetchGoogleRssRecentNews(window: NewsWindow): Promise<LiveNewsIte
         { title, originalUrl, source: hostnameOf(originalUrl), snippet, publishedAt },
         window,
       );
+    }
+  }
+
+  return [...gathered.values()].sort(
+    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  );
+}
+
+/** 최근 N일 뉴스만 빠르게 수집 (백그라운드 갱신용, Google RSS 3배치) */
+export async function fetchRollingNews(
+  window = getNewsWindow(NEWS_ROLLING_DAYS),
+): Promise<LiveNewsItem[]> {
+  const gathered = new Map<string, LiveNewsItem>();
+  const afterDate = windowAfterDateKey(window);
+  const orQueries = buildGoogleRssOrQueries(8, afterDate).slice(0, 3);
+
+  for (const query of orQueries) {
+    const rssUrl = new URL("https://news.google.com/rss/search");
+    rssUrl.searchParams.set("q", query);
+    rssUrl.searchParams.set("hl", "ko");
+    rssUrl.searchParams.set("gl", "KR");
+    rssUrl.searchParams.set("ceid", "KR:ko");
+
+    try {
+      const response = await fetchWithTimeout(rssUrl.toString());
+      if (!response.ok) continue;
+
+      const xml = await response.text();
+      const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/gi) ?? [];
+
+      for (const block of itemBlocks) {
+        const rawTitle = cleanCdata(extractTag(block, "title"));
+        const rawLink = cleanCdata(extractTag(block, "link"));
+        const rawDescription = cleanCdata(extractTag(block, "description"));
+        const rawPubDate = cleanCdata(extractTag(block, "pubDate"));
+        const title = decodeHtml(rawTitle.replace(/\s*-\s*Google 뉴스$/i, "").trim());
+        const originalUrl = normalizeUrl(rawLink);
+        const snippet = decodeHtml(rawDescription);
+        const publishedAt = parsePublishedAt(rawPubDate) ?? new Date().toISOString();
+        if (!title || !originalUrl) continue;
+
+        addIfRelevant(
+          gathered,
+          { title, originalUrl, source: hostnameOf(originalUrl), snippet, publishedAt },
+          window,
+        );
+      }
+    } catch {
+      continue;
     }
   }
 

@@ -3,7 +3,7 @@ import NewsTabs from "@/components/news-tabs";
 import { loadNewsPageData } from "@/lib/recent-news";
 
 export default async function NewsPage() {
-  const { weeks, archiveItems, recentWindow } = await loadNewsPageData();
+  const { weeks, recentWindow } = await loadNewsPageData();
 
   return (
     <AppShell
@@ -12,7 +12,6 @@ export default async function NewsPage() {
     >
       <NewsTabs
         weeks={weeks}
-        archiveItems={archiveItems}
         recentPeriodLabel={recentWindow.label}
         emptyMessage="최근 7일간 수집된 ESG 뉴스가 없습니다. 키워드 검색으로 저장된 이전 기사를 찾아볼 수 있습니다."
       />
