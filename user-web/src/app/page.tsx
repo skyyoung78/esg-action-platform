@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "@/components/app-shell";
+import HomeEsgTrendDashboard from "@/components/home-esg-trend-dashboard";
 import { newsItems, volunteers } from "@/lib/mock-data";
 import { loadRecentJobs } from "@/lib/recent-jobs";
 import { loadRecentNewsPeriod } from "@/lib/recent-news";
@@ -54,7 +55,7 @@ export default async function Home() {
   }
 
   return (
-    <AppShell title="대학생 ESG 액션 플랫폼" description="뉴스 · 채용 · ESG 정보 · 봉사활동을 한 곳에서 확인합니다.">
+    <AppShell title="대학생 ESG 액션 플랫폼" description="ESG 트렌드 · 뉴스 · 채용 · 봉사활동을 한 곳에서 확인합니다.">
       <section className="bg-gradient-to-r from-[#085041] to-[#1D9E75] rounded-xl p-6 text-white mb-6">
         <h2 className="text-xl font-bold">오늘의 추천 봉사활동</h2>
         <p className="mt-2 text-sm">환경 정화, 멘토링 등 대학생 참여형 활동을 확인해보세요.</p>
@@ -62,6 +63,8 @@ export default async function Home() {
           봉사활동 보러가기
         </Link>
       </section>
+
+      <HomeEsgTrendDashboard articles={recentPeriod.items} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <article className="bg-white rounded-xl p-4 shadow-sm">
