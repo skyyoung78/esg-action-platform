@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import NewsArticleReader from "@/components/news-article-reader";
+import NewsClickTracker from "@/components/news-click-tracker";
+import NewsOutlinkButton from "@/components/news-outlink-button";
 import { ESG_CATEGORY_BADGE_CLASS, ESG_CATEGORY_LABEL } from "@/lib/esg-news-filter";
 import { getNewsDetailById } from "@/lib/news-detail";
 import { getSummarySentence } from "@/lib/news-summary";
@@ -48,6 +50,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
       title="기사 상세"
       description="원문 → 핵심 요약 → 대학생 맞춤 ESG 트렌드 요약 순서로 확인할 수 있습니다."
     >
+      <NewsClickTracker newsId={article.id} title={article.title} category={article.category} />
       <div className="mb-4">
         <Link href="/news" className="text-sm text-[#085041] hover:underline">
           ← 뉴스 목록으로
@@ -69,14 +72,15 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
           <h1 className="text-xl font-bold text-[#111827] leading-snug">{article.title}</h1>
 
           {articleUrl ? (
-            <a
+            <NewsOutlinkButton
+              newsId={article.id}
               href={articleUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              title={article.title}
+              category={article.category}
               className="inline-flex mt-4 text-sm text-[#085041] hover:underline"
             >
               언론사 원문 URL ↗
-            </a>
+            </NewsOutlinkButton>
           ) : null}
         </header>
 
@@ -100,6 +104,8 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
               </div>
               <NewsArticleReader
                 newsId={article.id}
+                title={article.title}
+                category={article.category}
                 originalUrl={article.originalUrl}
                 originalSnippet=""
                 embedded
@@ -108,6 +114,8 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
           ) : (
             <NewsArticleReader
               newsId={article.id}
+              title={article.title}
+              category={article.category}
               originalUrl={article.originalUrl}
               originalSnippet={article.originalSnippet}
               embedded

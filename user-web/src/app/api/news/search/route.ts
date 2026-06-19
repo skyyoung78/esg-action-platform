@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NewsItemView } from "@/components/news-list";
 import { loadAccumulatedNewsItems, toCompactNewsItem } from "@/lib/recent-news";
+import { recordSearchQuery } from "@/lib/record-search-query";
 
 function buildSearchHaystack(item: NewsItemView): string {
   return [
@@ -16,7 +17,8 @@ function buildSearchHaystack(item: NewsItemView): string {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const query = String(searchParams.get("q") ?? "").trim().toLowerCase();
+  const rawQuery = String(searchParams.get("q") ?? "").trim();
+  const query = rawQuery.toLowerCase();
   const category = String(searchParams.get("category") ?? "all").trim();
 
   if (!query) {
@@ -31,6 +33,14 @@ export async function GET(request: Request) {
     })
     .slice(0, 80)
     .map(toCompactNewsItem);
+
+  recordSearchQuery({
+    query: rawQuery,
+    searchType: "news",
+    context: category === "all" ? null : category,
+    resultCount: matched.length,
+    userAgent: request.headers.get("user-agent"),
+  });
 
   return NextResponse.json({ ok: true, items: matched });
 }

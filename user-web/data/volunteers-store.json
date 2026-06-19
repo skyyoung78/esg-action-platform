@@ -1,0 +1,35 @@
+{
+  "updatedAt": "2026-06-17T23:54:05.507Z",
+  "volunteers": [
+    {
+      "id": "v1",
+      "title": "한강 플로깅 환경정화 활동",
+      "esg_category": "E",
+      "hours": "미정",
+      "location": "미정",
+      "capacity": "30명",
+      "benefit": "",
+      "description": "주말 오전 한강 일대 쓰레기 수거 및 분리배출 캠페인을 진행합니다.",
+      "image_url": "https://images.unsplash.com/photo-1509099863731-ef4bff19e808?q=80&w=1200&auto=format&fit=crop",
+      "target_outlink_url": "https://forms.gle/example1",
+      "is_1365": true,
+      "deleted_at": null,
+      "created_at": "2026-06-17T23:54:05.507Z"
+    },
+    {
+      "id": "v2",
+      "title": "지역아동 학습 멘토링",
+      "esg_category": "S",
+      "hours": "미정",
+      "location": "미정",
+      "capacity": "15명",
+      "benefit": "",
+      "description": "지역아동센터에서 중학생 대상 학습 멘토링을 운영합니다.",
+      "image_url": "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop",
+      "target_outlink_url": "https://university.example.com/volunteer/2",
+      "is_1365": false,
+      "deleted_at": null,
+      "created_at": "2026-06-17T23:54:05.507Z"
+    }
+  ]
+}

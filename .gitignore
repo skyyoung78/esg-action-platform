@@ -29,3 +29,8 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Local runtime analytics (dev only)
+user-web/data/news-clicks.json
+user-web/data/search-queries.json
+user-web/data/volunteer-clicks.json

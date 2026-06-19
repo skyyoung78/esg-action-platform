@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchCompanyDisclosure } from "@/lib/company-disclosure";
+import { recordSearchQuery } from "@/lib/record-search-query";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,6 +12,14 @@ export async function GET(request: Request) {
   }
 
   const result = await fetchCompanyDisclosure({ name, stockCode });
+
+  recordSearchQuery({
+    query: name,
+    searchType: "disclosure",
+    context: stockCode ?? null,
+    resultCount: result ? 1 : 0,
+    userAgent: request.headers.get("user-agent"),
+  });
 
   if (!result) {
     return NextResponse.json(

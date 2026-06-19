@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NewsOutlinkButton from "@/components/news-outlink-button";
+import type { EsgCategory } from "@/lib/esg-news-filter";
 import { normalizeExternalUrl } from "@/lib/url";
 
 type NewsArticleReaderProps = {
   newsId: string;
+  title?: string;
+  category?: EsgCategory;
   originalUrl: string;
   originalSnippet: string;
   embedded?: boolean;
@@ -12,6 +16,8 @@ type NewsArticleReaderProps = {
 
 export default function NewsArticleReader({
   newsId,
+  title,
+  category,
   originalUrl,
   originalSnippet,
   embedded = false,
@@ -109,15 +115,16 @@ export default function NewsArticleReader({
 
       {articleUrl ? (
         <div className="mt-5 pt-4 border-t border-slate-100">
-          <a
+          <NewsOutlinkButton
+            newsId={newsId}
             href={articleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            title={title}
+            category={category}
             className="inline-flex items-center gap-1 rounded-md border border-[#085041] px-4 py-2 text-sm font-medium text-[#085041] hover:bg-[#085041]/5 transition-colors"
           >
             언론사 원문 사이트에서 보기
             <span aria-hidden>↗</span>
-          </a>
+          </NewsOutlinkButton>
         </div>
       ) : (
         <p className="mt-4 text-sm text-slate-500">연결된 원문 URL이 없습니다.</p>

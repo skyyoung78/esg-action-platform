@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildCompanyNewsDashboard } from "@/lib/company-news-dashboard";
 import { searchCompanyNews } from "@/lib/company-news-search";
+import { recordSearchQuery } from "@/lib/record-search-query";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,6 +13,13 @@ export async function GET(request: Request) {
 
   const articles = await searchCompanyNews(name);
   const dashboard = buildCompanyNewsDashboard(name, articles);
+
+  recordSearchQuery({
+    query: name,
+    searchType: "company_news",
+    resultCount: articles.length,
+    userAgent: request.headers.get("user-agent"),
+  });
 
   return NextResponse.json({
     ok: true,
